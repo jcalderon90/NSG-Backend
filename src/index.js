@@ -14,3 +14,5 @@ app.listen(PORT, () => {
         port: PORT,
     });
 });
+
+export default app;

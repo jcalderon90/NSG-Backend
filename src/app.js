@@ -28,7 +28,9 @@ const allowedOrigins = [
     "http://localhost:3002",
     "http://localhost:5173",
     "https://nsgintelligence.com",
-    "https://nsg-web.onrender.com", // Just in case
+    "https://www.nsgintelligence.com",
+    "https://nsg-eight.vercel.app",
+    "https://nsg-backend.vercel.app", // Your backend URL
 ].map((url) => url?.replace(/\/$/, "")); // Remove trailing slashes
 
 app.use(
