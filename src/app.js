@@ -30,20 +30,32 @@ const allowedOrigins = [
     "https://nsgintelligence.com",
     "https://www.nsgintelligence.com",
     "https://nsg-eight.vercel.app",
-    "https://nsg-backend.vercel.app", // Your backend URL
+    "https://nsg-backend.vercel.app",
 ].map((url) => url?.replace(/\/$/, "")); // Remove trailing slashes
 
 app.use(
     cors({
         origin: (origin, callback) => {
-            if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin) return callback(null, true);
+
+            const originUrl = origin.replace(/\/$/, "");
+
+            // Check if the origin is in the allowed list or is a Vercel subdomain
+            if (
+                allowedOrigins.includes(originUrl) ||
+                originUrl.endsWith(".vercel.app") ||
+                /^http:\/\/localhost:\d+$/.test(originUrl)
+            ) {
                 callback(null, true);
             } else {
                 console.warn(`[CORS] Rejected origin: ${origin}`);
-                callback(null, false); // Don't crash, just reject
+                callback(null, false);
             }
         },
         credentials: true,
+        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+        allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
     }),
 );
 

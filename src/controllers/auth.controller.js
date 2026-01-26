@@ -328,7 +328,7 @@ export const forgotPasswordEmail = async (req, res) => {
             const emailService = await import("../services/emailService.js");
             await emailService.sendPasswordResetEmail(
                 user.email,
-                user.username,
+                user.firstName || user.username || "Usuario",
                 resetCode,
             );
             console.log(

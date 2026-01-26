@@ -1,12 +1,18 @@
-import nodemailer from 'nodemailer';
+import nodemailer from "nodemailer";
 
 // Configuración del transportador de email (hardcoded para servidor de pruebas)
 const createTransporter = () => {
-    return nodemailer.createTransporter({
-        service: 'gmail',
+    // Usar configuración explícita de SMTP es más confiable en plataformas como Vercel
+    return nodemailer.createTransport({
+        host: "smtp.gmail.com",
+        port: 465,
+        secure: true, // true para el puerto 465
         auth: {
-            user: 'iagents.nsg@gmail.com',
-            pass: 'btdo rvfs yxfn izef', // App Password de Gmail
+            user: process.env.EMAIL_USER || "iagents.nsg@gmail.com",
+            pass: process.env.EMAIL_PASSWORD || "btdo rvfs yxfn izef",
+        },
+        tls: {
+            rejectUnauthorized: false, // Ayuda con problemas de certificados en algunos entornos
         },
     });
 };
@@ -22,9 +28,9 @@ export const sendPasswordResetEmail = async (to, username, resetCode) => {
         const transporter = createTransporter();
 
         const mailOptions = {
-            from: '"NSG Platform" <iagents.nsg@gmail.com>',
+            from: `"NSG Platform" <${process.env.EMAIL_USER || "iagents.nsg@gmail.com"}>`,
             to: to,
-            subject: '🔐 Código de Recuperación de Contraseña - NSG',
+            subject: "🔐 Código de Recuperación de Contraseña - NSG",
             html: `
                 <!DOCTYPE html>
                 <html lang="es">
@@ -194,10 +200,12 @@ NSG Platform - Neural Strategic Gateway
         };
 
         const info = await transporter.sendMail(mailOptions);
-        console.log(`[EMAIL-SERVICE] Email enviado exitosamente a ${to}. MessageId: ${info.messageId}`);
+        console.log(
+            `[EMAIL-SERVICE] Email enviado exitosamente a ${to}. MessageId: ${info.messageId}`,
+        );
         return { success: true, messageId: info.messageId };
     } catch (error) {
-        console.error('[EMAIL-SERVICE] Error al enviar email:', error);
+        console.error("[EMAIL-SERVICE] Error al enviar email:", error);
         throw error;
     }
 };
