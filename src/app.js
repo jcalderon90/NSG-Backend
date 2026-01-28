@@ -15,6 +15,7 @@ import strategy_routes from "./routes/strategy.routes.js";
 import transcription_routes from "./routes/transcription.routes.js";
 import health_routes from "./routes/health.routes.js";
 import clarity_routes from "./routes/clarity.routes.js";
+import education_routes from "./routes/education.routes.js";
 
 // middlewares
 import { errorHandler, notFoundHandler } from "./middlewares/error_handler.js";
@@ -103,6 +104,8 @@ app.use("/transcriptions", transcription_routes);
 app.use("/health", health_routes);
 // Configurar las rutas de Clarity con el prefijo '/clarity'
 app.use("/clarity", clarity_routes);
+// Configurar las rutas de Education con el prefijo '/education'
+app.use("/education", education_routes);
 
 // Middleware de manejo de rutas no encontradas (debe estar después de todas las rutas)
 app.use(notFoundHandler);
