@@ -32,31 +32,42 @@ const allowedOrigins = [
     "https://www.nsgintelligence.com",
     "https://nsg-eight.vercel.app",
     "https://nsg-backend.vercel.app",
-].map((url) => url?.replace(/\/$/, "")); // Remove trailing slashes
+]
+    .filter(Boolean)
+    .map((url) => url.replace(/\/$/, ""));
 
 app.use(
     cors({
         origin: (origin, callback) => {
-            // Allow requests with no origin (like mobile apps or curl requests)
+            // Permitir peticiones sin origen (como apps móviles o curl)
             if (!origin) return callback(null, true);
 
             const originUrl = origin.replace(/\/$/, "");
 
-            // Check if the origin is in the allowed list or is a Vercel subdomain
-            if (
+            // Verificación simplificada
+            const isAllowed =
                 allowedOrigins.includes(originUrl) ||
                 originUrl.endsWith(".vercel.app") ||
-                /^http:\/\/localhost:\d+$/.test(originUrl)
-            ) {
+                /^http:\/\/localhost:\d+$/.test(originUrl);
+
+            if (isAllowed) {
                 callback(null, true);
             } else {
                 console.warn(`[CORS] Rejected origin: ${origin}`);
-                callback(null, false);
+                callback(null, false); // No pasar un Error, simplemente denegar
             }
         },
         credentials: true,
-        methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-        allowedHeaders: ["Content-Type", "Authorization", "Cookie"],
+        methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+        allowedHeaders: [
+            "Content-Type",
+            "Authorization",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Cookie",
+        ],
+        optionsSuccessStatus: 200,
     }),
 );
 
