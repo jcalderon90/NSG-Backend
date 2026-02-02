@@ -239,9 +239,10 @@ export const forgotPasswordTelegram = async (req, res) => {
         );
 
         // Enviar código via n8n/Telegram
-        const n8nWebhookUrl =
-            process.env.N8N_TELEGRAM_RESET_WEBHOOK ||
-            "https://personal-n8n.suwsiw.easypanel.host/webhook/telegram-reset-code";
+        const n8nWebhookUrl = process.env.N8N_TELEGRAM_RESET_WEBHOOK;
+        if (!n8nWebhookUrl) {
+            throw new Error("N8N_TELEGRAM_RESET_WEBHOOK is not defined");
+        }
 
         try {
             const webhookResponse = await axios.post(n8nWebhookUrl, {

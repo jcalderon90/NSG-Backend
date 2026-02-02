@@ -81,9 +81,10 @@ export const analyzeNews = async (req, res) => {
         logger.debug("Telegram ID", { telegramId });
 
         // Forwarding to n8n webhook
-        const n8nWebhookUrl =
-            process.env.N8N_NEWS_ANALYSIS_WEBHOOK ||
-            "https://personal-n8n.suwsiw.easypanel.host/webhook/analyze-news";
+        const n8nWebhookUrl = process.env.N8N_NEWS_ANALYSIS_WEBHOOK;
+        if (!n8nWebhookUrl) {
+            throw new Error("N8N_NEWS_ANALYSIS_WEBHOOK is not defined");
+        }
 
         const payload = {
             id,

@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const clarityCompletionSchema = new mongoose.Schema(
+const copilotCompletionSchema = new mongoose.Schema(
     {
         userId: {
             type: mongoose.Schema.Types.ObjectId,
@@ -44,14 +44,14 @@ const clarityCompletionSchema = new mongoose.Schema(
 );
 
 // Compound index for efficient queries
-clarityCompletionSchema.index(
+copilotCompletionSchema.index(
     { userId: 1, date: 1, protocol: 1 },
     { unique: true },
 );
-clarityCompletionSchema.index({ userId: 1, completedAt: -1 });
+copilotCompletionSchema.index({ userId: 1, completedAt: -1 });
 
 // Static method to check if protocol was completed today
-clarityCompletionSchema.statics.isCompletedToday = async function (
+copilotCompletionSchema.statics.isCompletedToday = async function (
     userId,
     protocol,
 ) {
@@ -61,7 +61,7 @@ clarityCompletionSchema.statics.isCompletedToday = async function (
 };
 
 // Static method to get completions for a date range
-clarityCompletionSchema.statics.getCompletionsInRange = async function (
+copilotCompletionSchema.statics.getCompletionsInRange = async function (
     userId,
     startDate,
     endDate,
@@ -83,7 +83,7 @@ clarityCompletionSchema.statics.getCompletionsInRange = async function (
 };
 
 // Static method to calculate current streak
-clarityCompletionSchema.statics.calculateStreak = async function (
+copilotCompletionSchema.statics.calculateStreak = async function (
     userId,
     protocol = null,
 ) {
@@ -167,9 +167,9 @@ clarityCompletionSchema.statics.calculateStreak = async function (
     };
 };
 
-const ClarityCompletion = mongoose.model(
-    "ClarityCompletion",
-    clarityCompletionSchema,
+const CopilotCompletion = mongoose.model(
+    "CopilotCompletion",
+    copilotCompletionSchema,
 );
 
-export default ClarityCompletion;
+export default CopilotCompletion;

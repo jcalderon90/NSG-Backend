@@ -1,7 +1,7 @@
-import ClarityCompletion from "../models/ClarityCompletion.js";
+import CopilotCompletion from "../models/CopilotCompletion.js";
 
 /**
- * Complete a daily protocol (Morning Clarity, Power Check, or Next Day Planning)
+ * Complete a daily protocol (Morning Focus, Power Check, or Next Day Planning)
  */
 export const completeProtocol = async (req, res) => {
     try {
@@ -30,7 +30,7 @@ export const completeProtocol = async (req, res) => {
         }
 
         // Check if already completed today
-        const isCompleted = await ClarityCompletion.isCompletedToday(
+        const isCompleted = await CopilotCompletion.isCompletedToday(
             userId,
             protocol,
         );
@@ -43,7 +43,7 @@ export const completeProtocol = async (req, res) => {
 
         // Create completion record
         const today = new Date().toISOString().split("T")[0];
-        const completion = await ClarityCompletion.create({
+        const completion = await CopilotCompletion.create({
             userId,
             protocol,
             date: today,
@@ -54,7 +54,7 @@ export const completeProtocol = async (req, res) => {
         });
 
         // Get updated streak for this protocol
-        const streak = await ClarityCompletion.calculateStreak(
+        const streak = await CopilotCompletion.calculateStreak(
             userId,
             protocol,
         );
@@ -107,7 +107,7 @@ export const toggleProtocol = async (req, res) => {
         const today = new Date().toISOString().split("T")[0];
 
         // Check if exists
-        const existing = await ClarityCompletion.findOne({
+        const existing = await CopilotCompletion.findOne({
             userId,
             protocol,
             date: today,
@@ -115,10 +115,10 @@ export const toggleProtocol = async (req, res) => {
 
         if (existing) {
             // Unmark: Delete it
-            await ClarityCompletion.deleteOne({ _id: existing._id });
+            await CopilotCompletion.deleteOne({ _id: existing._id });
 
             // Recalculate streak
-            const streak = await ClarityCompletion.calculateStreak(
+            const streak = await CopilotCompletion.calculateStreak(
                 userId,
                 protocol,
             );
@@ -132,7 +132,7 @@ export const toggleProtocol = async (req, res) => {
         } else {
             try {
                 // Mark: Create it
-                const completion = await ClarityCompletion.create({
+                const completion = await CopilotCompletion.create({
                     userId,
                     protocol,
                     date: today,
@@ -143,7 +143,7 @@ export const toggleProtocol = async (req, res) => {
                 });
 
                 // Recalculate streak
-                const streak = await ClarityCompletion.calculateStreak(
+                const streak = await CopilotCompletion.calculateStreak(
                     userId,
                     protocol,
                 );
@@ -158,7 +158,7 @@ export const toggleProtocol = async (req, res) => {
             } catch (error) {
                 if (error.code === 11000) {
                     // If it was created in the meantime, just return as if it was already checked
-                    const streak = await ClarityCompletion.calculateStreak(
+                    const streak = await CopilotCompletion.calculateStreak(
                         userId,
                         protocol,
                     );
@@ -205,7 +205,7 @@ export const getHistory = async (req, res) => {
                 .toISOString()
                 .split("T")[0];
 
-        const completions = await ClarityCompletion.getCompletionsInRange(
+        const completions = await CopilotCompletion.getCompletionsInRange(
             userId,
             start,
             end,
@@ -255,7 +255,7 @@ export const getMetrics = async (req, res) => {
         const end = endDate.toISOString().split("T")[0];
 
         // Get all completions in range
-        const completions = await ClarityCompletion.getCompletionsInRange(
+        const completions = await CopilotCompletion.getCompletionsInRange(
             userId,
             start,
             end,
@@ -329,18 +329,18 @@ export const getStreaks = async (req, res) => {
         }
 
         // Calculate overall streak (any protocol)
-        const overallStreak = await ClarityCompletion.calculateStreak(userId);
+        const overallStreak = await CopilotCompletion.calculateStreak(userId);
 
         // Calculate streaks by protocol
-        const morningClarityStreak = await ClarityCompletion.calculateStreak(
+        const morningClarityStreak = await CopilotCompletion.calculateStreak(
             userId,
             "morning_clarity",
         );
-        const powerCheckStreak = await ClarityCompletion.calculateStreak(
+        const powerCheckStreak = await CopilotCompletion.calculateStreak(
             userId,
             "power_check",
         );
-        const nextDayPlanningStreak = await ClarityCompletion.calculateStreak(
+        const nextDayPlanningStreak = await CopilotCompletion.calculateStreak(
             userId,
             "next_day_planning",
         );
@@ -382,7 +382,7 @@ export const getTodayCompletions = async (req, res) => {
         }
 
         const today = new Date().toISOString().split("T")[0];
-        const completions = await ClarityCompletion.find({
+        const completions = await CopilotCompletion.find({
             userId,
             date: today,
         });
@@ -437,7 +437,7 @@ export const getHeatmapData = async (req, res) => {
         const end = endDate.toISOString().split("T")[0];
 
         // Get all completions
-        const completions = await ClarityCompletion.getCompletionsInRange(
+        const completions = await CopilotCompletion.getCompletionsInRange(
             userId,
             start,
             end,
@@ -477,7 +477,7 @@ export const getHeatmapData = async (req, res) => {
     }
 };
 
-const clarityController = {
+const copilotController = {
     completeProtocol,
     toggleProtocol,
     getHistory,
@@ -487,4 +487,4 @@ const clarityController = {
     getHeatmapData,
 };
 
-export default clarityController;
+export default copilotController;

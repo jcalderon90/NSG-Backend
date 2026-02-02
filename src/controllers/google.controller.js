@@ -4,9 +4,13 @@ import "dotenv/config";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI =
-    process.env.GOOGLE_REDIRECT_URI ||
-    "https://nsg-backend.onrender.com/google/callback";
+const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
+
+if (!GOOGLE_REDIRECT_URI) {
+    throw new Error(
+        "GOOGLE_REDIRECT_URI is not defined in environment variables",
+    );
+}
 
 // 1. Generar URL de autenticación
 export const getGoogleAuthUrl = (req, res) => {
@@ -50,7 +54,7 @@ export const googleCallback = async (req, res) => {
                 client_secret: GOOGLE_CLIENT_SECRET,
                 redirect_uri: GOOGLE_REDIRECT_URI,
                 grant_type: "authorization_code",
-            }
+            },
         );
 
         const tokens = tokenResponse.data;
@@ -61,7 +65,12 @@ export const googleCallback = async (req, res) => {
         });
 
         // Redirigir de vuelta al frontend (URL de producción o localhost según env)
-        let frontendUrl = process.env.FRONTEND_URL || "http://localhost:3001";
+        let frontendUrl = process.env.FRONTEND_URL;
+        if (!frontendUrl) {
+            throw new Error(
+                "FRONTEND_URL is not defined in environment variables",
+            );
+        }
         // Eliminar slash final si existe para evitar dobles slashes
         if (frontendUrl.endsWith("/")) {
             frontendUrl = frontendUrl.slice(0, -1);
@@ -77,7 +86,7 @@ export const getCalendarEvents = async (req, res) => {
     try {
         const userId = req.user.id;
         const user = await User.findById(userId).select(
-            "google_calendar_tokens"
+            "google_calendar_tokens",
         );
 
         if (!user || !user.google_calendar_tokens) {
@@ -90,21 +99,34 @@ export const getCalendarEvents = async (req, res) => {
 
         // Función para refrescar el token si es necesario
         const refreshAccessToken = async () => {
-            const refreshResponse = await axios.post(
-                "https://oauth2.googleapis.com/token",
-                {
-                    client_id: GOOGLE_CLIENT_ID,
-                    client_secret: GOOGLE_CLIENT_SECRET,
-                    refresh_token: tokens.refresh_token,
-                    grant_type: "refresh_token",
-                }
-            );
+            try {
+                const refreshResponse = await axios.post(
+                    "https://oauth2.googleapis.com/token",
+                    {
+                        client_id: GOOGLE_CLIENT_ID,
+                        client_secret: GOOGLE_CLIENT_SECRET,
+                        refresh_token: tokens.refresh_token,
+                        grant_type: "refresh_token",
+                    },
+                );
 
-            const newTokens = { ...tokens, ...refreshResponse.data };
-            await User.findByIdAndUpdate(userId, {
-                google_calendar_tokens: newTokens,
-            });
-            return newTokens.access_token;
+                const newTokens = { ...tokens, ...refreshResponse.data };
+                await User.findByIdAndUpdate(userId, {
+                    google_calendar_tokens: newTokens,
+                });
+                return newTokens.access_token;
+            } catch (err) {
+                // Si el refresh token también es inválido o fue revocado
+                if (err.response?.data?.error === "invalid_grant") {
+                    console.log(
+                        `[Google] Refresh token invalid for user ${userId}. Clearing tokens.`,
+                    );
+                    await User.findByIdAndUpdate(userId, {
+                        google_calendar_tokens: null,
+                    });
+                }
+                throw err;
+            }
         };
 
         let accessToken = tokens.access_token;
@@ -116,32 +138,51 @@ export const getCalendarEvents = async (req, res) => {
                 `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&maxResults=20&singleEvents=true&orderBy=startTime`,
                 {
                     headers: { Authorization: `Bearer ${accessToken}` },
-                }
+                },
             );
 
             res.json(calendarResponse.data.items);
         } catch (err) {
             if (err.response?.status === 401 && tokens.refresh_token) {
                 // Token expirado, intentar refrescar
-                accessToken = await refreshAccessToken();
-                const calendarResponseUpdate = await axios.get(
-                    `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&maxResults=20&singleEvents=true&orderBy=startTime`,
-                    {
-                        headers: { Authorization: `Bearer ${accessToken}` },
+                try {
+                    accessToken = await refreshAccessToken();
+                    const calendarResponseUpdate = await axios.get(
+                        `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${now}&maxResults=20&singleEvents=true&orderBy=startTime`,
+                        {
+                            headers: { Authorization: `Bearer ${accessToken}` },
+                        },
+                    );
+                    res.json(calendarResponseUpdate.data.items);
+                } catch (refreshErr) {
+                    // Si falla el refresco (por ejemplo, invalid_grant)
+                    if (refreshErr.response?.data?.error === "invalid_grant") {
+                        return res.status(401).json({
+                            message:
+                                "Conexión con Google Calendar expirada o revocada. Por favor, vuelve a conectar.",
+                            error: "invalid_grant",
+                        });
                     }
-                );
-                res.json(calendarResponseUpdate.data.items);
+                    throw refreshErr;
+                }
             } else {
                 throw err;
             }
         }
     } catch (error) {
         console.error("Error en getCalendarEvents:", error.message);
-        console.error("Error details:", error.response?.data || error);
-        res.status(500).json({
+        if (error.response?.data) {
+            console.error(
+                "Error details:",
+                JSON.stringify(error.response.data, null, 2),
+            );
+        }
+
+        const statusCode = error.response?.status === 401 ? 401 : 500;
+        res.status(statusCode).json({
             message: "Error al obtener eventos de Google Calendar",
             error: error.message,
-            details: error.response?.data || null
+            details: error.response?.data || null,
         });
     }
 };

@@ -14,7 +14,7 @@ import news_routes from "./routes/news.routes.js";
 import strategy_routes from "./routes/strategy.routes.js";
 import transcription_routes from "./routes/transcription.routes.js";
 import health_routes from "./routes/health.routes.js";
-import clarity_routes from "./routes/clarity.routes.js";
+import copilot_routes from "./routes/copilot.routes.js";
 import education_routes from "./routes/education.routes.js";
 
 // middlewares
@@ -22,19 +22,24 @@ import { errorHandler, notFoundHandler } from "./middlewares/error_handler.js";
 
 const app = express();
 
+// Basic Liveness Check (Fast response for EasyPanel/Health Checks)
+app.get("/health/live", (req, res) => {
+    res.status(200).send("OK");
+});
+
+// Root route (also serves as a health check)
+app.get("/", (req, res) => {
+    res.status(200).send("Bienvenido - Server is live");
+});
+
 const allowedOrigins = [
     process.env.FRONTEND_URL,
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "http://localhost:3002",
-    "http://localhost:5173",
-    "https://nsgintelligence.com",
-    "https://www.nsgintelligence.com",
-    "https://nsg-eight.vercel.app",
-    "https://nsg-backend.vercel.app",
+    ...(process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(",")
+        : []),
 ]
     .filter(Boolean)
-    .map((url) => url.replace(/\/$/, ""));
+    .map((url) => url.trim().replace(/\/$/, ""));
 
 app.use(
     cors({
@@ -44,11 +49,11 @@ app.use(
 
             const originUrl = origin.replace(/\/$/, "");
 
-            // Verificación simplificada
+            // Verificación: permitir si está en la lista o si es localhost en desarrollo
             const isAllowed =
                 allowedOrigins.includes(originUrl) ||
-                originUrl.endsWith(".vercel.app") ||
-                /^http:\/\/localhost:\d+$/.test(originUrl);
+                (process.env.NODE_ENV !== "production" &&
+                    /^http:\/\/localhost:\d+$/.test(originUrl));
 
             if (isAllowed) {
                 callback(null, true);
@@ -90,9 +95,20 @@ app.use((req, res, next) => {
     next();
 });
 
-// Ruta raíz
-app.get("/", (req, res) => {
-    res.send("Bienvenido");
+// Database connection middleware (Ensures DB is connected before processing requests)
+import { connect_db } from "./db.js";
+app.use(async (req, res, next) => {
+    try {
+        await connect_db();
+        next();
+    } catch (error) {
+        console.error("Database connection failed:", error.message);
+        res.status(500).json({
+            message: "Database connection failed",
+            error: error.message,
+            code: "DB_CONNECTION_ERROR",
+        });
+    }
 });
 
 // Configurar las rutas de autenticación de usuarios con el prefijo '/auth'
@@ -113,8 +129,8 @@ app.use("/strategies", strategy_routes);
 app.use("/transcriptions", transcription_routes);
 // Configurar las rutas de Health Check con el prefijo '/health'
 app.use("/health", health_routes);
-// Configurar las rutas de Clarity con el prefijo '/clarity'
-app.use("/clarity", clarity_routes);
+// Configurar las rutas de Copilot con el prefijo '/copilot'
+app.use("/copilot", copilot_routes);
 // Configurar las rutas de Education con el prefijo '/education'
 app.use("/education", education_routes);
 

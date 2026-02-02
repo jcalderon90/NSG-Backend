@@ -239,9 +239,10 @@ export const generateFathomAnalysis = async (req, res) => {
     try {
         const userId = req.user.id;
         const { recording_id } = req.body; // Cambiado de meetingId a recording_id para consistencia con Fathom
-        const N8N_WEBHOOK_URL =
-            process.env.N8N_FATHOM_ANALYSIS_WEBHOOK ||
-            "https://personal-n8n.suwsiw.easypanel.host/webhook/generate-fathom-analysis";
+        const N8N_WEBHOOK_URL = process.env.N8N_FATHOM_ANALYSIS_WEBHOOK;
+        if (!N8N_WEBHOOK_URL) {
+            throw new Error("N8N_FATHOM_ANALYSIS_WEBHOOK is not defined");
+        }
 
         // 0. Verificar si ya existe un análisis para esta grabación para evitar duplicados y llamadas innecesarias a N8N
         const existingAnalysis = await RecordingAnalysisRelation.findOne({
