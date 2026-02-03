@@ -1,4 +1,5 @@
 import EducationPreferences from "../models/education-preferences.model.js";
+import EducationContent from "../models/education-content.model.js";
 import User from "../models/user.model.js";
 
 /**
@@ -212,6 +213,47 @@ export const reset_onboarding = async (req, res) => {
         });
     } catch (error) {
         console.error("[ERROR] reset_onboarding:", error);
+        res.status(500).json({ message: error.message });
+    }
+};
+
+/**
+ * Obtener todos los recursos procesados de Education del usuario
+ * GET /education/content
+ */
+export const get_content = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+
+        const contents = await EducationContent.find({
+            user_id: user_id.toString(),
+        })
+            .sort({ createdAt: -1 }) // Más recientes primero
+            .lean();
+
+        // Mapear a formato frontend
+        const mapped = contents.map((item) => ({
+            id: item._id.toString(),
+            title: item.data.title,
+            type: item.source_type || "document",
+            status: "ready",
+            thumbnailUrl: item.source_url || null,
+            createdAt: new Date(item.createdAt).toLocaleDateString("es-ES", {
+                day: "2-digit",
+                month: "short",
+                year: "numeric",
+            }),
+            summary: item.data.summary.substring(0, 120) + "...",
+            // Store full data for detail view
+            fullData: item.data,
+        }));
+
+        res.json({
+            success: true,
+            data: mapped,
+        });
+    } catch (error) {
+        console.error("[ERROR] get_content:", error);
         res.status(500).json({ message: error.message });
     }
 };
