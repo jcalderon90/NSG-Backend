@@ -3,6 +3,7 @@ import { connect_db } from "./db.js";
 import { logger } from "./utils/logger.js";
 
 // Conectar a la base de datos
+// MongoDB connection initialized
 connect_db();
 
 // Escuchar solicitudes en el puerto (Default 4000 para VPS/EasyPanel)
