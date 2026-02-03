@@ -19,6 +19,7 @@ import education_routes from "./routes/education.routes.js";
 
 // middlewares
 import { errorHandler, notFoundHandler } from "./middlewares/error_handler.js";
+import { CONFIG } from "./config.js";
 
 const app = express();
 
@@ -32,14 +33,7 @@ app.get("/", (req, res) => {
     res.status(200).send("Bienvenido - Server is live");
 });
 
-const allowedOrigins = [
-    process.env.FRONTEND_URL,
-    ...(process.env.ALLOWED_ORIGINS
-        ? process.env.ALLOWED_ORIGINS.split(",")
-        : []),
-]
-    .filter(Boolean)
-    .map((url) => url.trim().replace(/\/$/, ""));
+const allowedOrigins = CONFIG.ALLOWED_ORIGINS;
 
 app.use(
     cors({

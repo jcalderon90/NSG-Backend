@@ -1,1 +1,31 @@
+import "dotenv/config";
+
+const isProduction = process.env.NODE_ENV === "production";
+
 export const TOKEN_SECRET = process.env.TOKEN_SECRET || "some secret key";
+
+export const CONFIG = {
+    PORT: process.env.PORT || 4000,
+    NODE_ENV: process.env.NODE_ENV || "development",
+    MONGODB_URI: process.env.MONGODB_URI,
+
+    // Dynamic URLs based on environment
+    FRONTEND_URL: isProduction
+        ? "https://nsgintelligence.com"
+        : "http://localhost:3000",
+
+    GOOGLE_REDIRECT_URI: isProduction
+        ? "https://api.nsgintelligence.com/google/callback"
+        : "http://localhost:4000/google/callback",
+
+    API_BASE_URL: isProduction
+        ? "https://api.nsgintelligence.com"
+        : "http://localhost:4000",
+
+    ALLOWED_ORIGINS: [
+        "https://nsgintelligence.com",
+        "https://www.nsgintelligence.com",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
+};

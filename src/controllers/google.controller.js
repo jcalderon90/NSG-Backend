@@ -1,16 +1,10 @@
 import User from "../models/user.model.js";
 import axios from "axios";
-import "dotenv/config";
+import { CONFIG } from "../config.js";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
-const GOOGLE_REDIRECT_URI = process.env.GOOGLE_REDIRECT_URI;
-
-if (!GOOGLE_REDIRECT_URI) {
-    throw new Error(
-        "GOOGLE_REDIRECT_URI is not defined in environment variables",
-    );
-}
+const GOOGLE_REDIRECT_URI = CONFIG.GOOGLE_REDIRECT_URI;
 
 // 1. Generar URL de autenticación
 export const getGoogleAuthUrl = (req, res) => {
@@ -65,16 +59,7 @@ export const googleCallback = async (req, res) => {
         });
 
         // Redirigir de vuelta al frontend (URL de producción o localhost según env)
-        let frontendUrl = process.env.FRONTEND_URL;
-        if (!frontendUrl) {
-            throw new Error(
-                "FRONTEND_URL is not defined in environment variables",
-            );
-        }
-        // Eliminar slash final si existe para evitar dobles slashes
-        if (frontendUrl.endsWith("/")) {
-            frontendUrl = frontendUrl.slice(0, -1);
-        }
+        const frontendUrl = CONFIG.FRONTEND_URL;
         res.redirect(`${frontendUrl}/dashboard/agenda_maestra?connected=true`);
     } catch (error) {
         res.status(500).send("Error al autenticar con Google");
