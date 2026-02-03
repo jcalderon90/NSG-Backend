@@ -171,6 +171,15 @@ export const getCalendarEvents = async (req, res) => {
         }
     } catch (error) {
         console.error("Error en getCalendarEvents:", error.message);
+
+        let statusCode = 500;
+        const googleError = error.response?.data?.error;
+
+        // Si es 401 (Unauthorized) o Google nos dice 'invalid_grant' (que suele venir con 400)
+        if (error.response?.status === 401 || googleError === "invalid_grant") {
+            statusCode = 401;
+        }
+
         if (error.response?.data) {
             console.error(
                 "Error details:",
@@ -178,7 +187,6 @@ export const getCalendarEvents = async (req, res) => {
             );
         }
 
-        const statusCode = error.response?.status === 401 ? 401 : 500;
         res.status(statusCode).json({
             message: "Error al obtener eventos de Google Calendar",
             error: error.message,
