@@ -257,3 +257,45 @@ export const get_content = async (req, res) => {
         res.status(500).json({ message: error.message });
     }
 };
+
+/**
+ * Eliminar un recurso de Education
+ * DELETE /education/content/:contentId
+ */
+export const delete_content = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+        const { contentId } = req.params;
+
+        // Buscar contenido que pertenezca al usuario
+        const content = await EducationContent.findOne({
+            _id: contentId,
+            user_id: user_id.toString(),
+        });
+
+        if (!content) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Recurso no encontrado o no tienes permisos para eliminarlo",
+            });
+        }
+
+        await EducationContent.findByIdAndDelete(contentId);
+
+        console.log(
+            `[INFO] Recurso ${contentId} eliminado por usuario ${user_id}`,
+        );
+
+        res.json({
+            success: true,
+            message: "Recurso eliminado exitosamente",
+        });
+    } catch (error) {
+        console.error("[ERROR] delete_content:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
