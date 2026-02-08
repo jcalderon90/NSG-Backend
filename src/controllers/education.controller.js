@@ -280,7 +280,14 @@ export const get_content = async (req, res) => {
                     ? "ready"
                     : "processing",
                 thumbnailUrl: item.source_url || null,
-                createdAt: item.createdAt || new Date().toISOString(),
+                createdAt:
+                    item.created_at ||
+                    item.createdAt ||
+                    new Date().toISOString(),
+                updatedAt:
+                    item.updated_at ||
+                    item.updatedAt ||
+                    new Date().toISOString(),
                 summary: summary,
                 fullData: {
                     ...(item.data || {}),
@@ -390,7 +397,10 @@ export const get_single_content = async (req, res) => {
             type: item.source_type || "document",
             status: item.question_process?.completed ? "ready" : "processing",
             thumbnailUrl: item.source_url || null,
-            createdAt: item.createdAt || new Date().toISOString(),
+            createdAt:
+                item.created_at || item.createdAt || new Date().toISOString(),
+            updatedAt:
+                item.updated_at || item.updatedAt || new Date().toISOString(),
             summary: summary,
             fullData: {
                 ...(item.data || {}),

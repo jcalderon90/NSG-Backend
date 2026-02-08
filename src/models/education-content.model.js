@@ -57,6 +57,14 @@ const educationContentSchema = new mongoose.Schema(
             ],
             suggested_questions: [String],
         },
+        created_at: {
+            type: String,
+            required: false,
+        },
+        updated_at: {
+            type: String,
+            required: false,
+        },
     },
     {
         timestamps: true,
