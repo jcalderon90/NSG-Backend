@@ -295,3 +295,49 @@ export const delete_content = async (req, res) => {
         });
     }
 };
+
+/**
+ * Obtener un solo recurso por ID
+ * GET /education/content/:contentId
+ */
+export const get_single_content = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+        const { contentId } = req.params;
+
+        const item = await EducationContent.findOne({
+            _id: contentId,
+            user_id: user_id.toString(),
+        }).lean();
+
+        if (!item) {
+            return res.status(404).json({
+                success: false,
+                message: "Recurso no encontrado",
+            });
+        }
+
+        // Mapear al mismo formato usado en get_content para consistencia
+        const mapped = {
+            id: item._id.toString(),
+            title: item.data.title,
+            type: item.source_type || "document",
+            status: "ready",
+            thumbnailUrl: item.source_url || null,
+            createdAt: item.createdAt,
+            summary: item.data.summary.substring(0, 120) + "...",
+            fullData: item.data,
+        };
+
+        res.json({
+            success: true,
+            data: mapped,
+        });
+    } catch (error) {
+        console.error("[ERROR] get_single_content:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
