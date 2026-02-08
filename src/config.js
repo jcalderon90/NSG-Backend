@@ -12,11 +12,13 @@ export const CONFIG = {
     // Dynamic URLs based on environment
     FRONTEND_URL: isProduction
         ? "https://nsgintelligence.com"
-        : "http://localhost:3000",
+        : "http://localhost:3200",
 
-    GOOGLE_REDIRECT_URI: isProduction
-        ? "https://api.nsgintelligence.com/google/callback"
-        : "http://localhost:4000/google/callback",
+    GOOGLE_REDIRECT_URI:
+        process.env.GOOGLE_REDIRECT_URI ||
+        (isProduction
+            ? "https://api.nsgintelligence.com/google/callback"
+            : "http://localhost:4000/google/callback"),
 
     API_BASE_URL: isProduction
         ? "https://api.nsgintelligence.com"
@@ -25,7 +27,7 @@ export const CONFIG = {
     ALLOWED_ORIGINS: [
         "https://nsgintelligence.com",
         "https://www.nsgintelligence.com",
-        "http://localhost:3000",
-        "http://127.0.0.1:3000",
+        "http://localhost:3200",
+        "http://127.0.0.1:3200",
     ],
 };

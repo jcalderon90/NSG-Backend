@@ -17,6 +17,10 @@ export const getGoogleAuthUrl = (req, res) => {
     // Usamos el userId en el state para recuperarlo en el callback
     const state = req.user.id;
 
+    console.log(
+        `[Google Auth] Generando URL con redirect_uri: "${GOOGLE_REDIRECT_URI}"`,
+    );
+
     const url =
         `https://accounts.google.com/o/oauth2/v2/auth?` +
         `client_id=${GOOGLE_CLIENT_ID}&` +
