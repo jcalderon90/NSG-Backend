@@ -13,22 +13,28 @@ const educationContentSchema = new mongoose.Schema(
         },
         source_type: {
             type: String,
-            enum: ["video", "document", "audio", "text"],
+            enum: ["video", "document", "audio", "text", "pdf", "image"],
             default: "text",
         },
         source_url: {
             type: String,
             required: false,
         },
+        extracted_data: {
+            type: String,
+            required: true,
+        },
+        question_process: {
+            completed: {
+                type: Boolean,
+                default: false,
+            },
+            current_step: Number,
+        },
+        // Mantener data como opcional por compatibilidad o futuros análisis
         data: {
-            title: {
-                type: String,
-                required: true,
-            },
-            summary: {
-                type: String,
-                required: true,
-            },
+            title: String,
+            summary: String,
             strategic_analysis: {
                 alignment: String,
                 friction_bypass: String,

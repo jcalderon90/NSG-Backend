@@ -217,6 +217,8 @@ export const reset_onboarding = async (req, res) => {
     }
 };
 
+import mongoose from "mongoose";
+
 /**
  * Obtener todos los recursos procesados de Education del usuario
  * GET /education/content
@@ -224,25 +226,69 @@ export const reset_onboarding = async (req, res) => {
 export const get_content = async (req, res) => {
     try {
         const user_id = req.user.id;
+        console.log(
+            `[Education] Consultando contenido para usuario: ${user_id}`,
+        );
 
+        // Búsqueda flexible por si acaso el ID está guardado como ObjectId o String
         const contents = await EducationContent.find({
-            user_id: user_id.toString(),
+            $or: [
+                { user_id: user_id.toString() },
+                {
+                    user_id: mongoose.Types.ObjectId.isValid(user_id)
+                        ? new mongoose.Types.ObjectId(user_id)
+                        : user_id,
+                },
+            ],
         })
             .sort({ createdAt: -1 }) // Más recientes primero
             .lean();
 
+        console.log(
+            `[Education] Registros encontrados en DB: ${contents.length}`,
+        );
+
         // Mapear a formato frontend
-        const mapped = contents.map((item) => ({
-            id: item._id.toString(),
-            title: item.data.title,
-            type: item.source_type || "document",
-            status: "ready",
-            thumbnailUrl: item.source_url || null,
-            createdAt: item.createdAt, // Send ISO string for better handling in frontend
-            summary: item.data.summary.substring(0, 120) + "...",
-            // Store full data for detail view
-            fullData: item.data,
-        }));
+        const mapped = contents.map((item) => {
+            // Título: Prioridad 1: data.title, Prioridad 2: extracted_data (primeras palabras), Fallback: Tipo de recurso
+            let title = item.data?.title;
+            if (!title && item.extracted_data) {
+                title = item.extracted_data.split("\n")[0].substring(0, 50);
+            }
+            if (!title) {
+                title = item.source_type
+                    ? `Recurso ${item.source_type.toUpperCase()}`
+                    : "Recurso de Inteligencia";
+            }
+
+            const full_text =
+                item.extracted_data ||
+                (item.data ? item.data.summary : "") ||
+                "";
+            const summary =
+                typeof full_text === "string"
+                    ? full_text.length > 120
+                        ? full_text.substring(0, 120) + "..."
+                        : full_text
+                    : "Contenido no disponible";
+
+            return {
+                id: item._id.toString(),
+                title: title,
+                type: item.source_type || "document",
+                status: item.question_process?.completed
+                    ? "ready"
+                    : "processing",
+                thumbnailUrl: item.source_url || null,
+                createdAt: item.createdAt || new Date().toISOString(),
+                summary: summary,
+                fullData: {
+                    ...(item.data || {}),
+                    extracted_data: item.extracted_data,
+                    question_process: item.question_process,
+                },
+            };
+        });
 
         res.json({
             success: true,
@@ -317,16 +363,40 @@ export const get_single_content = async (req, res) => {
             });
         }
 
+        // Título: Prioridad 1: data.title, Prioridad 2: extracted_data (primeras palabras), Fallback: Tipo de recurso
+        let title = item.data?.title;
+        if (!title && item.extracted_data) {
+            title = item.extracted_data.split("\n")[0].substring(0, 50);
+        }
+        if (!title) {
+            title = item.source_type
+                ? `Recurso ${item.source_type.toUpperCase()}`
+                : "Recurso de Inteligencia";
+        }
+
+        const full_text =
+            item.extracted_data || (item.data ? item.data.summary : "") || "";
+        const summary =
+            typeof full_text === "string"
+                ? full_text.length > 120
+                    ? full_text.substring(0, 120) + "..."
+                    : full_text
+                : "Contenido no disponible";
+
         // Mapear al mismo formato usado en get_content para consistencia
         const mapped = {
             id: item._id.toString(),
-            title: item.data.title,
+            title: title,
             type: item.source_type || "document",
-            status: "ready",
+            status: item.question_process?.completed ? "ready" : "processing",
             thumbnailUrl: item.source_url || null,
-            createdAt: item.createdAt,
-            summary: item.data.summary.substring(0, 120) + "...",
-            fullData: item.data,
+            createdAt: item.createdAt || new Date().toISOString(),
+            summary: summary,
+            fullData: {
+                ...(item.data || {}),
+                extracted_data: item.extracted_data,
+                question_process: item.question_process,
+            },
         };
 
         res.json({

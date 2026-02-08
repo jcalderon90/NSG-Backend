@@ -37,4 +37,18 @@ education_router.get("/content/:contentId", auth_required, get_single_content);
 // Eliminar un recurso específico
 education_router.delete("/content/:contentId", auth_required, delete_content);
 
+// Chat con el contenido
+education_router.post("/content/:contentId/chat", auth_required, (req, res) => {
+    // Placeholder para el controlador de chat
+    res.json({
+        message: {
+            id: Date.now().toString(),
+            role: "bot",
+            content:
+                "Hola. Estoy analizando este recurso para responderte. Por ahora estoy en modo demo.",
+            timestamp: new Date(),
+        },
+    });
+});
+
 export default education_router;
