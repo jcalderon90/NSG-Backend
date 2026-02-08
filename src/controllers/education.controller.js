@@ -238,11 +238,7 @@ export const get_content = async (req, res) => {
             type: item.source_type || "document",
             status: "ready",
             thumbnailUrl: item.source_url || null,
-            createdAt: new Date(item.createdAt).toLocaleDateString("es-ES", {
-                day: "2-digit",
-                month: "short",
-                year: "numeric",
-            }),
+            createdAt: item.createdAt, // Send ISO string for better handling in frontend
             summary: item.data.summary.substring(0, 120) + "...",
             // Store full data for detail view
             fullData: item.data,
