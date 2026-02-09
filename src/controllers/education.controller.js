@@ -293,6 +293,7 @@ export const get_content = async (req, res) => {
                     ...(item.data || {}),
                     extracted_data: item.extracted_data,
                     question_process: item.question_process,
+                    telegram_id: item.telegram_id,
                 },
             };
         });
@@ -316,10 +317,17 @@ export const delete_content = async (req, res) => {
         const user_id = req.user.id;
         const { contentId } = req.params;
 
-        // Buscar contenido que pertenezca al usuario
+        // Búsqueda flexible por si acaso el ID está guardado como ObjectId o String
         const content = await EducationContent.findOne({
             _id: contentId,
-            user_id: user_id.toString(),
+            $or: [
+                { user_id: user_id.toString() },
+                {
+                    user_id: mongoose.Types.ObjectId.isValid(user_id)
+                        ? new mongoose.Types.ObjectId(user_id)
+                        : user_id,
+                },
+            ],
         });
 
         if (!content) {
@@ -406,6 +414,7 @@ export const get_single_content = async (req, res) => {
                 ...(item.data || {}),
                 extracted_data: item.extracted_data,
                 question_process: item.question_process,
+                telegram_id: item.telegram_id,
             },
         };
 
