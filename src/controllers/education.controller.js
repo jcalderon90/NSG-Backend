@@ -542,3 +542,64 @@ export const save_answers = async (req, res) => {
         });
     }
 };
+
+/**
+ * Endpoint para que n8n actualice los datos del recurso (preguntas o análisis final)
+ * POST /education/content/:contentId/update
+ */
+export const update_content_data = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const updateData = req.body;
+
+        console.log(
+            `[Education] Recibida actualización desde n8n para: ${contentId}`,
+        );
+
+        const content = await EducationContent.findById(contentId);
+        if (!content) {
+            return res
+                .status(404)
+                .json({ success: false, message: "Recurso no encontrado" });
+        }
+
+        // Si n8n envía bloques de preguntas
+        if (updateData.question_blocks) {
+            content.question_process = {
+                completed: updateData.completed || false,
+                current_step: updateData.current_step || 0,
+                question_blocks: updateData.question_blocks,
+            };
+            content.markModified("question_process");
+        }
+
+        // Si n8n envía el análisis final
+        if (updateData.data) {
+            content.data = {
+                ...content.data,
+                ...updateData.data,
+            };
+
+            // Si viene el análisis completo o n8n lo marca, finalizar
+            if (
+                updateData.completed === true ||
+                updateData.data.strategic_analysis
+            ) {
+                if (!content.question_process) content.question_process = {};
+                content.question_process.completed = true;
+                content.markModified("question_process");
+            }
+        }
+
+        await content.save();
+
+        res.json({
+            success: true,
+            message: "Recurso actualizado correctamente",
+            completed: content.question_process?.completed,
+        });
+    } catch (error) {
+        console.error("[ERROR] update_content_data:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
