@@ -501,9 +501,37 @@ export const save_answers = async (req, res) => {
 
         await content.save();
 
+        // Notificar a n8n para generar el contenido final (análisis, insights, plan de acción)
+        try {
+            console.log(
+                `[Education] Notificando a n8n para generar contenido final: ${contentId}`,
+            );
+            fetch(
+                "https://personal-n8n.suwsiw.easypanel.host/webhook/generate-rescource-content",
+                {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        contentId: contentId,
+                        action: "generate_analysis",
+                    }),
+                },
+            ).catch((err) => {
+                console.error(
+                    "[ERROR] n8n webhook notify failed:",
+                    err.message,
+                );
+            });
+        } catch (webhookError) {
+            console.error(
+                "[ERROR] Failed to trigger final n8n webhook:",
+                webhookError,
+            );
+        }
+
         res.json({
             success: true,
-            message: "Respuestas guardadas exitosamente",
+            message: "Respuestas guardadas exitosamente y análisis solicitado",
             data: content.question_process,
         });
     } catch (error) {
