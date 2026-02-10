@@ -30,6 +30,7 @@ const educationContentSchema = new mongoose.Schema(
                 default: false,
             },
             current_step: Number,
+            question_blocks: [mongoose.Schema.Types.Mixed], // Soporte para bloques de preguntas de n8n
         },
         // Mantener data como opcional por compatibilidad o futuros análisis
         data: {

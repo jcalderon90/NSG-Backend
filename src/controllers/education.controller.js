@@ -281,12 +281,22 @@ export const get_content = async (req, res) => {
                     : "processing",
                 thumbnailUrl: item.source_url || null,
                 createdAt:
-                    item.created_at ||
+                    (
+                        item.createdAt ||
+                        item.created_at ||
+                        new Date()
+                    ).toISOString?.() ||
                     item.createdAt ||
+                    item.created_at ||
                     new Date().toISOString(),
                 updatedAt:
-                    item.updated_at ||
+                    (
+                        item.updatedAt ||
+                        item.updated_at ||
+                        new Date()
+                    ).toISOString?.() ||
                     item.updatedAt ||
+                    item.updated_at ||
                     new Date().toISOString(),
                 summary: summary,
                 fullData: {
@@ -406,9 +416,23 @@ export const get_single_content = async (req, res) => {
             status: item.question_process?.completed ? "ready" : "processing",
             thumbnailUrl: item.source_url || null,
             createdAt:
-                item.created_at || item.createdAt || new Date().toISOString(),
+                (
+                    item.createdAt ||
+                    item.created_at ||
+                    new Date()
+                ).toISOString?.() ||
+                item.createdAt ||
+                item.created_at ||
+                new Date().toISOString(),
             updatedAt:
-                item.updated_at || item.updatedAt || new Date().toISOString(),
+                (
+                    item.updatedAt ||
+                    item.updated_at ||
+                    new Date()
+                ).toISOString?.() ||
+                item.updatedAt ||
+                item.updated_at ||
+                new Date().toISOString(),
             summary: summary,
             fullData: {
                 ...(item.data || {}),
@@ -424,6 +448,66 @@ export const get_single_content = async (req, res) => {
         });
     } catch (error) {
         console.error("[ERROR] get_single_content:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message,
+        });
+    }
+};
+
+export const save_answers = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+        const { contentId } = req.params;
+        const { answers } = req.body;
+
+        const content = await EducationContent.findOne({
+            _id: contentId,
+            $or: [
+                { user_id: user_id.toString() },
+                {
+                    user_id: mongoose.Types.ObjectId.isValid(user_id)
+                        ? new mongoose.Types.ObjectId(user_id)
+                        : user_id,
+                },
+            ],
+        });
+
+        if (!content) {
+            return res.status(404).json({
+                success: false,
+                message: "Recurso no encontrado",
+            });
+        }
+
+        // Mapear respuestas en los bloques de preguntas
+        if (
+            content.question_process &&
+            content.question_process.question_blocks
+        ) {
+            content.question_process.question_blocks =
+                content.question_process.question_blocks.map((block) => ({
+                    ...block,
+                    questions: block.questions.map((q) => ({
+                        ...q,
+                        answer: answers[q.id] || q.answer || "",
+                    })),
+                }));
+
+            // Marcar como completado
+            content.question_process.completed = true;
+            content.markModified("question_process");
+        }
+
+        await content.save();
+
+        res.json({
+            success: true,
+            message: "Respuestas guardadas exitosamente",
+            data: content.question_process,
+        });
+    } catch (error) {
+        console.error("[ERROR] save_answers:", error);
         res.status(500).json({
             success: false,
             message: error.message,

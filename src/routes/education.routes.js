@@ -7,6 +7,7 @@ import {
     get_content,
     delete_content,
     get_single_content,
+    save_answers,
 } from "../controllers/education.controller.js";
 import { auth_required } from "../middlewares/validate_token.js";
 
@@ -36,6 +37,13 @@ education_router.get("/content/:contentId", auth_required, get_single_content);
 
 // Eliminar un recurso específico
 education_router.delete("/content/:contentId", auth_required, delete_content);
+
+// Guardar respuestas a las preguntas del recurso
+education_router.post(
+    "/content/:contentId/answers",
+    auth_required,
+    save_answers,
+);
 
 // Chat con el contenido
 education_router.post("/content/:contentId/chat", auth_required, (req, res) => {
