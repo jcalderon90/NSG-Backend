@@ -1,5 +1,6 @@
 import EducationPreferences from "../models/education-preferences.model.js";
 import EducationContent from "../models/education-content.model.js";
+import EducationGeneratedContent from "../models/education-generated-content.model.js";
 import User from "../models/user.model.js";
 
 /**
@@ -501,12 +502,12 @@ export const save_answers = async (req, res) => {
 
         await content.save();
 
-        // Notificar a n8n para generar el contenido final (análisis, insights, plan de acción)
+        // Notificar a n8n para generar el contenido final y esperar respuesta
         try {
             console.log(
                 `[Education] Notificando a n8n para generar contenido final: ${contentId}`,
             );
-            fetch(
+            const webhookResponse = await fetch(
                 "https://personal-n8n.suwsiw.easypanel.host/webhook/generate-rescource-content",
                 {
                     method: "POST",
@@ -516,24 +517,34 @@ export const save_answers = async (req, res) => {
                         action: "generate_analysis",
                     }),
                 },
-            ).catch((err) => {
-                console.error(
-                    "[ERROR] n8n webhook notify failed:",
-                    err.message,
+            );
+
+            if (!webhookResponse.ok) {
+                throw new Error(
+                    `n8n responded with status: ${webhookResponse.status}`,
                 );
+            }
+
+            const webhookData = await webhookResponse.json();
+            console.log("[Education] n8n response success:", webhookData);
+
+            return res.json({
+                success: true,
+                message: "Análisis generado exitosamente",
+                data: content.question_process,
+                generated: true,
             });
         } catch (webhookError) {
             console.error(
                 "[ERROR] Failed to trigger final n8n webhook:",
                 webhookError,
             );
+            return res.status(502).json({
+                success: false,
+                message: "El servidor de análisis no respondió correctamente",
+                error: webhookError.message,
+            });
         }
-
-        res.json({
-            success: true,
-            message: "Respuestas guardadas exitosamente y análisis solicitado",
-            data: content.question_process,
-        });
     } catch (error) {
         console.error("[ERROR] save_answers:", error);
         res.status(500).json({
@@ -600,6 +611,41 @@ export const update_content_data = async (req, res) => {
         });
     } catch (error) {
         console.error("[ERROR] update_content_data:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+};
+/**
+ * Obtener el contenido generado final desde la tabla education_content_generated
+ * GET /education/content/:contentId/generated
+ */
+export const get_generated_content = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const user_id = req.user.id;
+
+        console.log(
+            `[Education] Buscando contenido generado para resource_id: ${contentId}`,
+        );
+
+        const generated = await EducationGeneratedContent.findOne({
+            resource_id: contentId,
+            user_id: user_id.toString(),
+        }).lean();
+
+        if (!generated) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "Todavía no se ha generado el análisis final. Por favor espera un momento.",
+            });
+        }
+
+        res.json({
+            success: true,
+            data: generated,
+        });
+    } catch (error) {
+        console.error("[ERROR] get_generated_content:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 };

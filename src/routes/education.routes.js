@@ -9,6 +9,7 @@ import {
     get_single_content,
     save_answers,
     update_content_data,
+    get_generated_content,
 } from "../controllers/education.controller.js";
 import { auth_required } from "../middlewares/validate_token.js";
 
@@ -40,6 +41,13 @@ education_router.get("/content/:contentId", auth_required, get_single_content);
 education_router.delete("/content/:contentId", auth_required, delete_content);
 
 education_router.post("/content/:contentId/update", update_content_data);
+
+// Obtener el análisis final generado
+education_router.get(
+    "/content/:contentId/generated",
+    auth_required,
+    get_generated_content,
+);
 
 // Guardar respuestas a las preguntas del recurso
 education_router.post(
