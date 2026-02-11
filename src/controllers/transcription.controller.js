@@ -46,10 +46,11 @@ export const getTranscriptionsByUser = async (req, res) => {
 export const generateTranscriptionAnalysis = async (req, res) => {
     try {
         const { transcription_id } = req.body;
-        const N8N_WEBHOOK_URL = process.env.N8N_FATHOM_ANALYSIS_WEBHOOK;
-        if (!N8N_WEBHOOK_URL) {
-            throw new Error("N8N_FATHOM_ANALYSIS_WEBHOOK is not defined");
+        const N8N_BASE_URL = process.env.N8N_BASE_URL;
+        if (!N8N_BASE_URL) {
+            throw new Error("N8N_BASE_URL is not defined");
         }
+        const N8N_WEBHOOK_URL = `${N8N_BASE_URL}/webhook/generate-fathom-analysis`;
 
         // 0. Verificar si ya existe un análisis
         const existingAnalysis = await TranscriptionAnalysis.findOne({
@@ -272,10 +273,11 @@ export const proxyAudioAnalysis = async (req, res) => {
         });
         form.append("userId", userId);
 
-        const n8nUrl = process.env.N8N_AUDIO_ANALYSIS_WEBHOOK;
-        if (!n8nUrl) {
-            throw new Error("N8N_AUDIO_ANALYSIS_WEBHOOK is not defined");
+        const N8N_BASE_URL_AUDIO = process.env.N8N_BASE_URL;
+        if (!N8N_BASE_URL_AUDIO) {
+            throw new Error("N8N_BASE_URL is not defined");
         }
+        const n8nUrl = `${N8N_BASE_URL_AUDIO}/webhook/generate-audio-analysis`;
 
         const n8nResponse = await axios.post(n8nUrl, form, {
             headers: {

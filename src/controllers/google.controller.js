@@ -14,11 +14,15 @@ export const getGoogleAuthUrl = (req, res) => {
         "https://www.googleapis.com/auth/userinfo.email",
     ];
 
-    // Usamos el userId en el state para recuperarlo en el callback
-    const state = req.user.id;
+    // Codificamos el userId y el origin en el state
+    const origin = req.query.origin || CONFIG.FRONTEND_URL;
+    const state = Buffer.from(JSON.stringify({
+        userId: req.user.id,
+        origin
+    })).toString('base64');
 
     console.log(
-        `[Google Auth] Generando URL con redirect_uri: "${GOOGLE_REDIRECT_URI}"`,
+        `[Google Auth] Generando URL con redirect_uri: "${GOOGLE_REDIRECT_URI}" y origin: "${origin}"`,
     );
 
     const url =
@@ -36,7 +40,7 @@ export const getGoogleAuthUrl = (req, res) => {
 
 // 2. Manejar el callback de Google
 export const googleCallback = async (req, res) => {
-    const { code, state } = req.query; // state contiene el userId
+    const { code, state } = req.query;
 
     if (!code) {
         return res.status(400).send("No se recibió el código de autorización");
@@ -57,15 +61,31 @@ export const googleCallback = async (req, res) => {
 
         const tokens = tokenResponse.data;
 
+        // Parsear el state para obtener userId y origin
+        let userId = state;
+        let frontendUrl = CONFIG.FRONTEND_URL;
+
+        try {
+            const decodedState = JSON.parse(Buffer.from(state, 'base64').toString());
+            userId = decodedState.userId;
+            frontendUrl = decodedState.origin || CONFIG.FRONTEND_URL;
+        } catch (e) {
+            console.error("[Google Callback] Error parsing state (legacy or invalid):", e.message);
+            // Si falla, asumimos que el state es solo el userId (legacy)
+        }
+
         // Guardar tokens en el usuario
-        await User.findByIdAndUpdate(state, {
+        await User.findByIdAndUpdate(userId, {
             google_calendar_tokens: tokens,
         });
 
-        // Redirigir de vuelta al frontend (URL de producción o localhost según env)
-        const frontendUrl = CONFIG.FRONTEND_URL;
-        res.redirect(`${frontendUrl}/dashboard/agenda_maestra?connected=true`);
+        // Redirigir de vuelta al frontend (URL dinámica o config)
+        // Eliminamos el slash final si existe y redirigimos a /dashboard/calendar
+        const finalUrl = `${frontendUrl.replace(/\/$/, '')}/dashboard/calendar?connected=true`;
+        console.log(`[Google Auth] Redirecting to: ${finalUrl}`);
+        res.redirect(finalUrl);
     } catch (error) {
+        console.error("Error en googleCallback:", error.message);
         res.status(500).send("Error al autenticar con Google");
     }
 };

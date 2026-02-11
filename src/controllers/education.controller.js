@@ -507,8 +507,13 @@ export const save_answers = async (req, res) => {
             console.log(
                 `[Education] Notificando a n8n para generar contenido final: ${contentId}`,
             );
+            const N8N_BASE_URL = process.env.N8N_BASE_URL;
+            if (!N8N_BASE_URL) {
+                throw new Error("N8N_BASE_URL is not defined");
+            }
+
             const webhookResponse = await fetch(
-                "https://personal-n8n.suwsiw.easypanel.host/webhook/generate-rescource-content",
+                `${N8N_BASE_URL}/webhook/generate-rescource-content`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
