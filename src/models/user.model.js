@@ -86,6 +86,27 @@ const user_model = new mongoose.Schema(
             },
             default: null,
         },
+        stripe_customer_id: {
+            type: String,
+            default: null,
+        },
+        subscription_status: {
+            type: String,
+            enum: [
+                "active",
+                "trialing",
+                "past_due",
+                "canceled",
+                "incomplete",
+                "none",
+            ],
+            default: "none",
+        },
+        subscription_plan: {
+            type: String,
+            enum: ["free", "estratega", "enterprise"],
+            default: "free",
+        },
     },
     {
         timestamps: true,

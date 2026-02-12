@@ -73,6 +73,10 @@ app.use(
 // Configurar morgan para mostrar los registros de las solicitudes en el formato 'dev'
 app.use(morgan("dev"));
 
+// Configurar las rutas de Billing antes del body parser para que el webhook pueda usar raw body
+import billing_routes from "./routes/billing.routes.js";
+app.use("/billing", billing_routes);
+
 // Configurar el middleware para parsear solicitudes JSON y aumentar el límite para soportar audios (ej. 50MB)
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));

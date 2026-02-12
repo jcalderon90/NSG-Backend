@@ -27,6 +27,7 @@
     "nodemailer": "^7.0.12",
     "openai": "^6.17.0",
     "pdf-parse": "^2.4.5",
+    "stripe": "^20.3.1",
     "youtube-transcript": "^1.2.1",
     "ytdl-core": "^4.11.5",
     "zod": "^3.24.1"
