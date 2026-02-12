@@ -232,16 +232,23 @@ export const get_content = async (req, res) => {
         );
 
         // Búsqueda flexible por si acaso el ID está guardado como ObjectId o String
-        const contents = await EducationContent.find({
-            $or: [
-                { user_id: user_id.toString() },
-                {
-                    user_id: mongoose.Types.ObjectId.isValid(user_id)
-                        ? new mongoose.Types.ObjectId(user_id)
-                        : user_id,
-                },
-            ],
-        })
+        // Optimizamos la consulta EXCLUYENDO campos potencialmente pesados para la vista de lista
+        const contents = await EducationContent.find(
+            {
+                $or: [
+                    { user_id: user_id.toString() },
+                    {
+                        user_id: mongoose.Types.ObjectId.isValid(user_id)
+                            ? new mongoose.Types.ObjectId(user_id)
+                            : user_id,
+                    },
+                ],
+            },
+            {
+                extracted_data: 0,
+                "question_process.question_blocks": 0,
+            },
+        )
             .sort({ createdAt: -1 }) // Más recientes primero
             .lean();
 
@@ -251,27 +258,37 @@ export const get_content = async (req, res) => {
 
         // Mapear a formato frontend
         const mapped = contents.map((item) => {
-            // Título: Prioridad 1: data.title, Prioridad 2: extracted_data (primeras palabras), Fallback: Tipo de recurso
+            // Título: Prioridad 1: data.title, Prioridad 2: extracted_data (no disponible aquí), Fallback: Tipo de recurso
             let title = item.data?.title;
-            if (!title && item.extracted_data) {
-                title = item.extracted_data.split("\n")[0].substring(0, 50);
-            }
+
+            // Si no hay título, intentamos sacar algo del summary o tipo
             if (!title) {
                 title = item.source_type
                     ? `Recurso ${item.source_type.toUpperCase()}`
                     : "Recurso de Inteligencia";
             }
 
-            const full_text =
-                item.extracted_data ||
-                (item.data ? item.data.summary : "") ||
-                "";
+            // El resumen ahora viene preferiblemente de item.data.summary si existe
             const summary =
-                typeof full_text === "string"
-                    ? full_text.length > 120
-                        ? full_text.substring(0, 120) + "..."
-                        : full_text
-                    : "Contenido no disponible";
+                item.data?.summary ||
+                (item.source_type
+                    ? `Análisis de recurso ${item.source_type}`
+                    : "Analizando contenido estratégico...");
+
+            // Formatear fechas de forma segura
+            const formatDate = (date) => {
+                if (!date) return new Date().toISOString();
+                try {
+                    if (typeof date.toISOString === "function")
+                        return date.toISOString();
+                    const d = new Date(date);
+                    return isNaN(d.getTime())
+                        ? new Date().toISOString()
+                        : d.toISOString();
+                } catch (e) {
+                    return new Date().toISOString();
+                }
+            };
 
             return {
                 id: item._id.toString(),
@@ -281,29 +298,19 @@ export const get_content = async (req, res) => {
                     ? "ready"
                     : "processing",
                 thumbnailUrl: item.source_url || null,
-                createdAt:
-                    (
-                        item.createdAt ||
-                        item.created_at ||
-                        new Date()
-                    ).toISOString?.() ||
-                    item.createdAt ||
-                    item.created_at ||
-                    new Date().toISOString(),
-                updatedAt:
-                    (
-                        item.updatedAt ||
-                        item.updated_at ||
-                        new Date()
-                    ).toISOString?.() ||
-                    item.updatedAt ||
-                    item.updated_at ||
-                    new Date().toISOString(),
-                summary: summary,
+                createdAt: formatDate(item.createdAt || item.created_at),
+                updatedAt: formatDate(item.updatedAt || item.updated_at),
+                summary:
+                    typeof summary === "string" && summary.length > 120
+                        ? summary.substring(0, 120) + "..."
+                        : summary,
                 fullData: {
                     ...(item.data || {}),
-                    extracted_data: item.extracted_data,
-                    question_process: item.question_process,
+                    // extracted_data y question_blocks se excluyen para aligerar la carga
+                    // el frontend los pedirá por ID cuando sea necesario
+                    question_process: {
+                        completed: item.question_process?.completed || false,
+                    },
                     telegram_id: item.telegram_id,
                 },
             };
@@ -315,7 +322,11 @@ export const get_content = async (req, res) => {
         });
     } catch (error) {
         console.error("[ERROR] get_content:", error);
-        res.status(500).json({ message: error.message });
+        res.status(500).json({
+            success: false,
+            message: "Error al procesar la biblioteca de recursos",
+            details: error.message,
+        });
     }
 };
 
@@ -391,8 +402,12 @@ export const get_single_content = async (req, res) => {
 
         // Título: Prioridad 1: data.title, Prioridad 2: extracted_data (primeras palabras), Fallback: Tipo de recurso
         let title = item.data?.title;
-        if (!title && item.extracted_data) {
-            title = item.extracted_data.split("\n")[0].substring(0, 50);
+        if (
+            !title &&
+            item.extracted_data &&
+            typeof item.extracted_data === "string"
+        ) {
+            title = item.extracted_data.split(/\r?\n/, 1)[0].substring(0, 50);
         }
         if (!title) {
             title = item.source_type
@@ -451,7 +466,8 @@ export const get_single_content = async (req, res) => {
         console.error("[ERROR] get_single_content:", error);
         res.status(500).json({
             success: false,
-            message: error.message,
+            message: "Error al obtener el recurso",
+            details: error.message,
         });
     }
 };
