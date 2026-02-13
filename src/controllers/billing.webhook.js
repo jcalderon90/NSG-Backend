@@ -2,7 +2,8 @@ import Stripe from "stripe";
 import User from "../models/user.model.js";
 import { logger } from "../utils/logger.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
 /**
  * Stripe Webhook Handler
@@ -11,6 +12,10 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 export const handle_webhook = async (req, res) => {
     const sig = req.headers["stripe-signature"];
     let event;
+
+    if (!stripe) {
+        return res.status(503).send("Servicio de Stripe no configurado");
+    }
 
     try {
         event = stripe.webhooks.constructEvent(

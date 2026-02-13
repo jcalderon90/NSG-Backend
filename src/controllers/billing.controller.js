@@ -2,7 +2,13 @@ import Stripe from "stripe";
 import User from "../models/user.model.js";
 import { logger } from "../utils/logger.js";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const stripeKey = process.env.STRIPE_SECRET_KEY;
+if (!stripeKey) {
+    logger.warn(
+        "STRIPE_SECRET_KEY no está configurada. Las funciones de facturación no estarán disponibles.",
+    );
+}
+const stripe = stripeKey ? new Stripe(stripeKey) : null;
 
 /**
  * Crear una sesión de Checkout de Stripe
@@ -12,6 +18,15 @@ export const create_checkout_session = async (req, res) => {
     try {
         const { priceId } = req.body;
         const user_id = req.user.id;
+
+        if (!stripe) {
+            return res
+                .status(503)
+                .json({
+                    message:
+                        "El servicio de pagos no está configurado en el servidor",
+                });
+        }
 
         const user = await User.findById(user_id);
         if (!user) {
@@ -64,6 +79,14 @@ export const get_subscription_status = async (req, res) => {
     try {
         const user_id = req.user.id;
         const user = await User.findById(user_id);
+
+        if (!stripe) {
+            return res.json({
+                status: "none",
+                plan: "free",
+                error: "Stripe not configured",
+            });
+        }
 
         if (!user || !user.stripe_customer_id) {
             return res.json({ status: "none", plan: "free" });
