@@ -67,6 +67,13 @@ N8N_NEWS_ANALYSIS_WEBHOOK=https://personal-n8n.suwsiw.easypanel.host/webhook/ana
 N8N_TELEGRAM_RESET_WEBHOOK=https://personal-n8n.suwsiw.easypanel.host/webhook/telegram-reset-code
 ```
 
+### 8. **Stripe (Pasarela de Pagos)**
+
+```bash
+STRIPE_SECRET_KEY=sk_test_...        # Secret Key desde el dashboard de Stripe
+STRIPE_WEBHOOK_SECRET=whsec_...     # Secreto para validar notificaciones de Stripe
+```
+
 ## 📁 Archivo de Configuración
 
 ### ✅ `.env` (Único archivo)
