@@ -2,6 +2,7 @@ import News from "../models/news.model.js";
 import User from "../models/user.model.js";
 import axios from "axios";
 import { logger } from "../utils/logger.js";
+import { CONFIG } from "../config.js";
 
 export const getNews = async (req, res) => {
     try {
@@ -80,12 +81,7 @@ export const analyzeNews = async (req, res) => {
         const telegramId = user?.telegram_id || null;
         logger.debug("Telegram ID", { telegramId });
 
-        // Forwarding to n8n webhook
-        const N8N_BASE_URL = process.env.N8N_BASE_URL;
-        if (!N8N_BASE_URL) {
-            throw new Error("N8N_BASE_URL is not defined");
-        }
-        const n8nWebhookUrl = `${N8N_BASE_URL}/webhook/analyze-news`;
+        const n8nWebhookUrl = `${CONFIG.N8N_BASE_URL}/webhook/analyze-news`;
 
         const payload = {
             id,

@@ -2,7 +2,7 @@ import User from "../models/user.model.js";
 import { CREATE__ACCCESS__TOKEN } from "../libs/jwt.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import { TOKEN_SECRET } from "../config.js";
+import { TOKEN_SECRET, CONFIG } from "../config.js";
 import crypto from "crypto";
 import axios from "axios";
 
@@ -238,12 +238,7 @@ export const forgotPasswordTelegram = async (req, res) => {
             `[FORGOT-PASSWORD-TELEGRAM] Código generado para usuario ${user._id}: ${resetCode}, expira: ${expiresIn}`,
         );
 
-        // Enviar código via n8n/Telegram
-        const N8N_BASE_URL = process.env.N8N_BASE_URL;
-        if (!N8N_BASE_URL) {
-            throw new Error("N8N_BASE_URL is not defined");
-        }
-        const n8nWebhookUrl = `${N8N_BASE_URL}/webhook/telegram-reset-code`;
+        const n8nWebhookUrl = `${CONFIG.N8N_BASE_URL}/webhook/telegram-reset-code`;
 
         try {
             const webhookResponse = await axios.post(n8nWebhookUrl, {

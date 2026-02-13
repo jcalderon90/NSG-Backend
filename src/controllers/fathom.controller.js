@@ -2,6 +2,7 @@ import User from "../models/user.model.js";
 import FathomData from "../models/fathom.model.js";
 import RecordingAnalysisRelation from "../models/recording_analysis_relation.model.js";
 import axios from "axios";
+import { CONFIG } from "../config.js";
 
 // Guardar el access token de Fathom del usuario
 export const saveFathomToken = async (req, res) => {
@@ -238,12 +239,8 @@ export const getFathomMeetings = async (req, res) => {
 export const generateFathomAnalysis = async (req, res) => {
     try {
         const userId = req.user.id;
-        const { recording_id } = req.body; // Cambiado de meetingId a recording_id para consistencia con Fathom
-        const N8N_BASE_URL = process.env.N8N_BASE_URL;
-        if (!N8N_BASE_URL) {
-            throw new Error("N8N_BASE_URL is not defined");
-        }
-        const N8N_WEBHOOK_URL = `${N8N_BASE_URL}/webhook/generate-fathom-analysis`;
+        const { recording_id } = req.body;
+        const N8N_WEBHOOK_URL = `${CONFIG.N8N_BASE_URL}/webhook/generate-fathom-analysis`;
 
         // 0. Verificar si ya existe un análisis para esta grabación para evitar duplicados y llamadas innecesarias a N8N
         const existingAnalysis = await RecordingAnalysisRelation.findOne({

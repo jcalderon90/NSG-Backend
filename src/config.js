@@ -24,6 +24,10 @@ export const CONFIG = {
         ? "https://api.nsgintelligence.com"
         : "http://localhost:4000",
 
+    N8N_BASE_URL:
+        process.env.N8N_BASE_URL ||
+        "https://personal-n8n.suwsiw.easypanel.host",
+
     ALLOWED_ORIGINS: [
         "https://nsgintelligence.com",
         "https://www.nsgintelligence.com",
