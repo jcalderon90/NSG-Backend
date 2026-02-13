@@ -5,12 +5,13 @@ import CopilotCompletion from "../models/CopilotCompletion.js";
  */
 export const completeProtocol = async (req, res) => {
     try {
-        const { userId, protocol, metadata = {} } = req.body;
+        const userId = req.user.id;
+        const { protocol, metadata = {} } = req.body;
 
-        if (!userId || !protocol) {
+        if (!protocol) {
             return res.status(400).json({
                 success: false,
-                message: "userId and protocol are required",
+                message: "protocol is required",
             });
         }
 
@@ -80,12 +81,13 @@ export const completeProtocol = async (req, res) => {
  */
 export const toggleProtocol = async (req, res) => {
     try {
-        const { userId, protocol, metadata = {} } = req.body;
+        const userId = req.user.id;
+        const { protocol, metadata = {} } = req.body;
 
-        if (!userId || !protocol) {
+        if (!protocol) {
             return res.status(400).json({
                 success: false,
-                message: "userId and protocol are required",
+                message: "protocol is required",
             });
         }
 
@@ -187,15 +189,8 @@ export const toggleProtocol = async (req, res) => {
  */
 export const getHistory = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.id;
         const { startDate, endDate, protocol } = req.query;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                message: "userId is required",
-            });
-        }
 
         // Default to last 30 days if no dates provided
         const end = endDate || new Date().toISOString().split("T")[0];
@@ -232,15 +227,8 @@ export const getHistory = async (req, res) => {
  */
 export const getMetrics = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.id;
         const { period = "month" } = req.query; // 'week' or 'month'
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                message: "userId is required",
-            });
-        }
 
         // Calculate date range
         const endDate = new Date();
@@ -319,14 +307,7 @@ export const getMetrics = async (req, res) => {
  */
 export const getStreaks = async (req, res) => {
     try {
-        const { userId } = req.params;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                message: "userId is required",
-            });
-        }
+        const userId = req.user.id;
 
         // Calculate overall streak (any protocol)
         const overallStreak = await CopilotCompletion.calculateStreak(userId);
@@ -372,14 +353,7 @@ export const getStreaks = async (req, res) => {
  */
 export const getTodayCompletions = async (req, res) => {
     try {
-        const { userId } = req.params;
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                message: "userId is required",
-            });
-        }
+        const userId = req.user.id;
 
         const today = new Date().toISOString().split("T")[0];
         const completions = await CopilotCompletion.find({
@@ -418,15 +392,8 @@ export const getTodayCompletions = async (req, res) => {
  */
 export const getHeatmapData = async (req, res) => {
     try {
-        const { userId } = req.params;
+        const userId = req.user.id;
         const { months = 1 } = req.query; // Number of months to fetch
-
-        if (!userId) {
-            return res.status(400).json({
-                success: false,
-                message: "userId is required",
-            });
-        }
 
         // Calculate date range
         const endDate = new Date();

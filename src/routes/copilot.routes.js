@@ -1,5 +1,6 @@
 import express from "express";
 import copilotController from "../controllers/copilotController.js";
+import { auth_required } from "../middlewares/validate_token.js";
 
 const router = express.Router();
 
@@ -7,47 +8,43 @@ const router = express.Router();
  * @route   POST /api/copilot/complete
  * @desc    Mark a protocol as completed for today
  * @access  Private (requires authentication)
- * @body    { userId, protocol, metadata }
  */
-router.post("/complete", copilotController.completeProtocol);
-router.post("/toggle", copilotController.toggleProtocol);
+router.post("/complete", auth_required, copilotController.completeProtocol);
+router.post("/toggle", auth_required, copilotController.toggleProtocol);
 
 /**
- * @route   GET /api/copilot/history/:userId
+ * @route   GET /api/copilot/history
  * @desc    Get completion history for a user
  * @access  Private
- * @query   startDate, endDate, protocol (optional)
  */
-router.get("/history/:userId", copilotController.getHistory);
+router.get("/history", auth_required, copilotController.getHistory);
 
 /**
- * @route   GET /api/copilot/metrics/:userId
+ * @route   GET /api/copilot/metrics
  * @desc    Get completion metrics for a user
  * @access  Private
- * @query   period (week|month)
  */
-router.get("/metrics/:userId", copilotController.getMetrics);
+router.get("/metrics", auth_required, copilotController.getMetrics);
 
 /**
- * @route   GET /api/copilot/streaks/:userId
+ * @route   GET /api/copilot/streaks
  * @desc    Get streak information for a user
  * @access  Private
  */
-router.get("/streaks/:userId", copilotController.getStreaks);
+router.get("/streaks", auth_required, copilotController.getStreaks);
 
 /**
- * @route   GET /api/copilot/today/:userId
+ * @route   GET /api/copilot/today
  * @desc    Get today's completed protocols for a user
  * @access  Private
  */
-router.get("/today/:userId", copilotController.getTodayCompletions);
+router.get("/today", auth_required, copilotController.getTodayCompletions);
 
 /**
- * @route   GET /api/copilot/heatmap/:userId
+ * @route   GET /api/copilot/heatmap
  * @desc    Get heatmap data for calendar visualization
  * @access  Private
- * @query   months (default: 1)
  */
-router.get("/heatmap/:userId", copilotController.getHeatmapData);
+router.get("/heatmap", auth_required, copilotController.getHeatmapData);
 
 export default router;
