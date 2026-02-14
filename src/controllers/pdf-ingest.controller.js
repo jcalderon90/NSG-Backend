@@ -1,7 +1,6 @@
 import { createRequire } from "module";
 const require = createRequire(import.meta.url);
-const pdfParseModule = require("pdf-parse");
-const pdfParse = pdfParseModule.default || pdfParseModule;
+const pdfParse = require("pdf-parse/lib/pdf-parse.js");
 
 /**
  * Cleans extracted PDF text:
