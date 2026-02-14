@@ -533,33 +533,50 @@ export const save_answers = async (req, res) => {
 
         // Notificar a n8n para generar el contenido final y esperar respuesta
         try {
-            console.log(
-                `[Education] Notificando a n8n para generar contenido final: ${contentId}`,
-            );
             const N8N_BASE_URL = CONFIG.N8N_BASE_URL;
             if (!N8N_BASE_URL) {
                 throw new Error("N8N_BASE_URL is not defined");
             }
 
-            const webhookResponse = await fetch(
-                `${N8N_BASE_URL}/webhook/generate-resource-content`,
-                {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        contentId: contentId,
-                        action: "generate_analysis",
-                    }),
-                },
+            // NOTA: La URL en n8n tiene un typo ("rescource" en vez de "resource")
+            // Se mantiene así para coincidir con el webhook configurado en n8n
+            const webhookUrl = `${N8N_BASE_URL}/webhook/generate-rescource-content`;
+            console.log(
+                `[Education] Notificando a n8n para generar contenido final: ${contentId}`,
+                `URL: ${webhookUrl}`,
             );
 
+            const webhookResponse = await fetch(webhookUrl, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    contentId: contentId,
+                    action: "generate_analysis",
+                }),
+            });
+
             if (!webhookResponse.ok) {
+                const errorText = await webhookResponse.text().catch(() => "");
                 throw new Error(
-                    `n8n responded with status: ${webhookResponse.status}`,
+                    `n8n responded with status: ${webhookResponse.status} - ${errorText}`,
                 );
             }
 
-            const webhookData = await webhookResponse.json();
+            // Parsear la respuesta de forma segura (n8n puede devolver vacío)
+            const responseText = await webhookResponse.text().catch(() => "");
+            let webhookData;
+            try {
+                webhookData = responseText
+                    ? JSON.parse(responseText)
+                    : { success: true };
+            } catch (parseErr) {
+                console.warn(
+                    "[Education] n8n response was not valid JSON:",
+                    responseText,
+                );
+                webhookData = { success: true, raw: responseText };
+            }
+
             console.log("[Education] n8n response success:", webhookData);
 
             return res.json({
@@ -571,7 +588,7 @@ export const save_answers = async (req, res) => {
         } catch (webhookError) {
             console.error(
                 "[ERROR] Failed to trigger final n8n webhook:",
-                webhookError,
+                webhookError.message,
             );
             return res.status(502).json({
                 success: false,
