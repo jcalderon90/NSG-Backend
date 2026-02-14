@@ -16,6 +16,14 @@ const educationContentSchema = new mongoose.Schema(
             enum: ["video", "document", "audio", "text", "pdf", "image"],
             default: "text",
         },
+        title: {
+            type: String,
+            required: false,
+        },
+        summary: {
+            type: String,
+            required: false,
+        },
         source_url: {
             type: String,
             required: false,

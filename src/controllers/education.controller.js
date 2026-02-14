@@ -272,8 +272,9 @@ export const get_content = async (req, res) => {
                     : "Recurso de Inteligencia";
             }
 
-            // Resumen: prioridad data.summary, luego fallback por tipo
+            // Resumen: prioridad raíz (n8n), luego data.summary, luego fallback por tipo
             const summary =
+                item.summary ||
                 item.data?.summary ||
                 (item.source_type
                     ? `Análisis de recurso ${item.source_type}`
@@ -433,7 +434,10 @@ export const get_single_content = async (req, res) => {
         }
 
         const full_text =
-            item.extracted_data || (item.data ? item.data.summary : "") || "";
+            item.summary ||
+            item.extracted_data ||
+            (item.data ? item.data.summary : "") ||
+            "";
         const summary =
             typeof full_text === "string"
                 ? full_text.length > 120
