@@ -1,5 +1,4 @@
 import { Router } from "express";
-import multer from "multer";
 import {
     get_onboarding_status,
     get_preferences,
@@ -12,22 +11,9 @@ import {
     update_content_data,
     get_generated_content,
 } from "../controllers/education.controller.js";
-import { ingest_pdf } from "../controllers/pdf-ingest.controller.js";
 import { auth_required } from "../middlewares/validate_token.js";
 
 const education_router = Router();
-const upload = multer({
-    storage: multer.memoryStorage(),
-    limits: { fileSize: 60 * 1024 * 1024 }, // 60MB max
-});
-
-// PDF ingestion with server-side text extraction
-education_router.post(
-    "/ingest-pdf",
-    auth_required,
-    upload.single("document"),
-    ingest_pdf,
-);
 
 // Verificar estado del onboarding
 education_router.get(
