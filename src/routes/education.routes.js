@@ -12,6 +12,7 @@ import {
     get_generated_content,
 } from "../controllers/education.controller.js";
 import { auth_required } from "../middlewares/validate_token.js";
+import { CONFIG } from "../config.js";
 
 const education_router = Router();
 
@@ -40,7 +41,30 @@ education_router.get("/content/:contentId", auth_required, get_single_content);
 // Eliminar un recurso específico
 education_router.delete("/content/:contentId", auth_required, delete_content);
 
-education_router.post("/content/:contentId/update", update_content_data);
+// Middleware para validar webhook de n8n (secreto compartido)
+const validate_webhook_secret = (req, res, next) => {
+    const secret = req.headers["x-webhook-secret"];
+    const expectedSecret = CONFIG.N8N_WEBHOOK_SECRET;
+
+    // Si no hay secreto configurado, permitir (desarrollo)
+    if (!expectedSecret) {
+        return next();
+    }
+
+    if (!secret || secret !== expectedSecret) {
+        return res.status(401).json({
+            success: false,
+            message: "Webhook no autorizado",
+        });
+    }
+    next();
+};
+
+education_router.post(
+    "/content/:contentId/update",
+    validate_webhook_secret,
+    update_content_data,
+);
 
 // Obtener el análisis final generado
 education_router.get(

@@ -1,7 +1,9 @@
+import mongoose from "mongoose";
 import EducationPreferences from "../models/education-preferences.model.js";
 import EducationContent from "../models/education-content.model.js";
 import EducationGeneratedContent from "../models/education-generated-content.model.js";
 import User from "../models/user.model.js";
+import { CONFIG } from "../config.js";
 
 /**
  * Verificar si el usuario ha completado el onboarding
@@ -218,7 +220,7 @@ export const reset_onboarding = async (req, res) => {
     }
 };
 
-import mongoose from "mongoose";
+// mongoose is now imported at the top of the file
 
 /**
  * Obtener todos los recursos procesados de Education del usuario
@@ -362,6 +364,9 @@ export const delete_content = async (req, res) => {
 
         await EducationContent.findByIdAndDelete(contentId);
 
+        // Limpiar contenido generado asociado (evitar datos huérfanos)
+        await EducationGeneratedContent.deleteMany({ resource_id: contentId });
+
         console.log(
             `[INFO] Recurso ${contentId} eliminado por usuario ${user_id}`,
         );
@@ -388,9 +393,17 @@ export const get_single_content = async (req, res) => {
         const user_id = req.user.id;
         const { contentId } = req.params;
 
+        // Búsqueda flexible por si acaso el ID está guardado como ObjectId o String
         const item = await EducationContent.findOne({
             _id: contentId,
-            user_id: user_id.toString(),
+            $or: [
+                { user_id: user_id.toString() },
+                {
+                    user_id: mongoose.Types.ObjectId.isValid(user_id)
+                        ? new mongoose.Types.ObjectId(user_id)
+                        : user_id,
+                },
+            ],
         }).lean();
 
         if (!item) {
@@ -523,13 +536,13 @@ export const save_answers = async (req, res) => {
             console.log(
                 `[Education] Notificando a n8n para generar contenido final: ${contentId}`,
             );
-            const N8N_BASE_URL = process.env.N8N_BASE_URL;
+            const N8N_BASE_URL = CONFIG.N8N_BASE_URL;
             if (!N8N_BASE_URL) {
                 throw new Error("N8N_BASE_URL is not defined");
             }
 
             const webhookResponse = await fetch(
-                `${N8N_BASE_URL}/webhook/generate-rescource-content`,
+                `${N8N_BASE_URL}/webhook/generate-resource-content`,
                 {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },

@@ -28,10 +28,15 @@ export const CONFIG = {
         process.env.N8N_BASE_URL ||
         "https://personal-n8n.suwsiw.easypanel.host",
 
-    ALLOWED_ORIGINS: [
-        "https://nsgintelligence.com",
-        "https://www.nsgintelligence.com",
-        "http://localhost:3200",
-        "http://127.0.0.1:3200",
-    ],
+    ALLOWED_ORIGINS: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(",").map((s) => s.trim())
+        : [
+              "https://nsgintelligence.com",
+              "https://www.nsgintelligence.com",
+              "http://localhost:3200",
+              "http://127.0.0.1:3200",
+          ],
+
+    // Secret compartido para autenticar webhooks entrantes de n8n
+    N8N_WEBHOOK_SECRET: process.env.N8N_WEBHOOK_SECRET || "",
 };
