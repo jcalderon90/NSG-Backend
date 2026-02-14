@@ -260,17 +260,19 @@ export const get_content = async (req, res) => {
 
         // Mapear a formato frontend
         const mapped = contents.map((item) => {
-            // Título: Prioridad 1: data.title, Prioridad 2: extracted_data (no disponible aquí), Fallback: Tipo de recurso
-            let title = item.data?.title;
+            // Título: n8n guarda "title" a nivel raíz del documento
+            // Prioridad 1: item.title (raíz, donde n8n lo guarda)
+            // Prioridad 2: item.data?.title (si update_content_data lo puso ahí)
+            // Fallback: tipo de recurso
+            let title = item.title || item.data?.title;
 
-            // Si no hay título, intentamos sacar algo del summary o tipo
             if (!title) {
                 title = item.source_type
                     ? `Recurso ${item.source_type.toUpperCase()}`
                     : "Recurso de Inteligencia";
             }
 
-            // El resumen ahora viene preferiblemente de item.data.summary si existe
+            // Resumen: prioridad data.summary, luego fallback por tipo
             const summary =
                 item.data?.summary ||
                 (item.source_type
@@ -413,8 +415,10 @@ export const get_single_content = async (req, res) => {
             });
         }
 
-        // Título: Prioridad 1: data.title, Prioridad 2: extracted_data (primeras palabras), Fallback: Tipo de recurso
-        let title = item.data?.title;
+        // Título: n8n guarda "title" a nivel raíz del documento
+        // Prioridad 1: item.title (raíz), Prioridad 2: item.data?.title
+        // Prioridad 3: extracted_data (primeras palabras), Fallback: tipo
+        let title = item.title || item.data?.title;
         if (
             !title &&
             item.extracted_data &&
