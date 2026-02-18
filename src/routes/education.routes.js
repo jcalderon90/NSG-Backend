@@ -10,6 +10,7 @@ import {
     save_answers,
     update_content_data,
     get_generated_content,
+    start_questions,
 } from "../controllers/education.controller.js";
 import { auth_required } from "../middlewares/validate_token.js";
 import { CONFIG } from "../config.js";
@@ -78,6 +79,13 @@ education_router.post(
     "/content/:contentId/answers",
     auth_required,
     save_answers,
+);
+
+// Iniciar o recuperar preguntas de análisis
+education_router.post(
+    "/content/:contentId/questions",
+    auth_required,
+    start_questions,
 );
 
 // Chat con el contenido

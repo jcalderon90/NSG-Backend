@@ -708,3 +708,91 @@ export const get_generated_content = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+/**
+ * Disparar o recuperar el proceso de preguntas de un recurso
+ * POST /education/content/:contentId/questions
+ */
+export const start_questions = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const user_id = req.user.id;
+        const { telegramId } = req.body;
+
+        console.log(
+            `[Education] Solicitando preguntas para recurso: ${contentId}`,
+        );
+
+        const content = await EducationContent.findOne({
+            _id: contentId,
+            $or: [
+                { user_id: user_id.toString() },
+                {
+                    user_id: mongoose.Types.ObjectId.isValid(user_id)
+                        ? new mongoose.Types.ObjectId(user_id)
+                        : user_id,
+                },
+            ],
+        });
+
+        if (!content) {
+            return res
+                .status(404)
+                .json({ success: false, message: "Recurso no encontrado" });
+        }
+
+        // VERIFICACIÓN CRÍTICA: Si ya tenemos preguntas en la DB, no llamar a n8n
+        if (
+            content.question_process &&
+            content.question_process.question_blocks &&
+            content.question_process.question_blocks.length > 0
+        ) {
+            console.log(
+                `[Education] Preguntas encontradas en DB para ${contentId}. Evitando duplicación en n8n.`,
+            );
+            return res.json({
+                success: true,
+                message: "Preguntas recuperadas de la base de datos",
+                question_process: content.question_process,
+            });
+        }
+
+        // Si no hay preguntas, disparar el flujo de n8n
+        const N8N_BASE_URL = CONFIG.N8N_BASE_URL;
+        if (!N8N_BASE_URL) {
+            throw new Error("N8N_BASE_URL no está configurada");
+        }
+
+        const webhookUrl = `${N8N_BASE_URL}/webhook/questions`;
+        console.log(`[Education] Disparando webhook n8n: ${webhookUrl}`);
+
+        const webhookResponse = await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                action: "start_questions",
+                contentId: contentId,
+                telegramId: telegramId || content.telegram_id,
+            }),
+        });
+
+        if (!webhookResponse.ok) {
+            throw new Error(`n8n respondió con error: ${webhookResponse.status}`);
+        }
+
+        const responseData = await webhookResponse.json().catch(() => ({}));
+
+        res.json({
+            success: true,
+            message: "Protocolo de preguntas iniciado en n8n",
+            ...responseData,
+        });
+    } catch (error) {
+        console.error("[ERROR] start_questions:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error al iniciar el protocolo de preguntas",
+            error: error.message,
+        });
+    }
+};
