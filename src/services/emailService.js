@@ -1,19 +1,34 @@
 import nodemailer from "nodemailer";
 
-// Configuración del transportador de email (hardcoded para servidor de pruebas)
+// Configuración del transportador de email
 const createTransporter = () => {
-    // Usar configuración explícita de SMTP es más confiable en plataformas como Vercel
+    const user = process.env.EMAIL_USER || "iagents.nsg@gmail.com";
+    const pass = process.env.EMAIL_PASSWORD || "";
+
+    console.log(
+        `[EMAIL-SERVICE] Creating transporter for: ${user}, password configured: ${pass ? "YES (" + pass.length + " chars)" : "NO"}`,
+    );
+
+    if (!pass) {
+        throw new Error(
+            "EMAIL_PASSWORD no está configurado en las variables de entorno",
+        );
+    }
+
     return nodemailer.createTransport({
         host: "smtp.gmail.com",
         port: 465,
-        secure: true, // true para el puerto 465
+        secure: true,
         auth: {
-            user: process.env.EMAIL_USER || "iagents.nsg@gmail.com",
-            pass: process.env.EMAIL_PASSWORD || "btdo rvfs yxfn izef",
+            user,
+            pass,
         },
         tls: {
-            rejectUnauthorized: false, // Ayuda con problemas de certificados en algunos entornos
+            rejectUnauthorized: false,
         },
+        connectionTimeout: 10000, // 10 seconds
+        greetingTimeout: 10000,
+        socketTimeout: 10000,
     });
 };
 
@@ -27,6 +42,22 @@ export const sendPasswordResetEmail = async (to, username, resetCode) => {
     try {
         const transporter = createTransporter();
 
+        // Verify SMTP connection before sending
+        try {
+            await transporter.verify();
+            console.log(
+                `[EMAIL-SERVICE] SMTP connection verified successfully`,
+            );
+        } catch (verifyError) {
+            console.error(
+                `[EMAIL-SERVICE] SMTP verification FAILED:`,
+                verifyError.message,
+            );
+            console.error(
+                `[EMAIL-SERVICE] Error code: ${verifyError.code}, command: ${verifyError.command}`,
+            );
+            throw new Error(`SMTP connection failed: ${verifyError.message}`);
+        }
         const mailOptions = {
             from: `"NSG Platform" <${process.env.EMAIL_USER || "iagents.nsg@gmail.com"}>`,
             to: to,
