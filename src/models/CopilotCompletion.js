@@ -83,83 +83,110 @@ copilotCompletionSchema.statics.getCompletionsInRange = async function (
 };
 
 // Static method to calculate current streak
+// Optimized: single aggregation query instead of N+1 per-day queries
 copilotCompletionSchema.statics.calculateStreak = async function (
     userId,
     protocol = null,
 ) {
     const today = new Date();
-    let currentStreak = 0;
-    let longestStreak = 0;
-    let tempStreak = 0;
-    let checkDate = new Date(today);
+    const todayStr = today.toISOString().split("T")[0];
 
-    // Check backwards from today
-    while (true) {
-        const dateStr = checkDate.toISOString().split("T")[0];
-        const query = { userId, date: dateStr };
+    // Calculate the date 365 days ago as a safety limit
+    const yearAgo = new Date(today);
+    yearAgo.setDate(yearAgo.getDate() - 365);
+    const yearAgoStr = yearAgo.toISOString().split("T")[0];
 
+    // Build the match stage based on whether we're checking a specific protocol or all
+    const matchStage = {
+        userId,
+        date: { $gte: yearAgoStr, $lte: todayStr },
+    };
+    if (protocol) {
+        matchStage.protocol = protocol;
+    }
+
+    // Single aggregation: group by date and count distinct protocols per day
+    const dailyCounts = await this.aggregate([
+        { $match: matchStage },
+        {
+            $group: {
+                _id: "$date",
+                protocolCount: { $addToSet: "$protocol" },
+            },
+        },
+        {
+            $project: {
+                date: "$_id",
+                count: { $size: "$protocolCount" },
+                _id: 0,
+            },
+        },
+        { $sort: { date: -1 } },
+    ]);
+
+    // Build a Set of "qualifying" dates for O(1) lookup
+    // For a specific protocol: any day with that protocol counts
+    // For overall: only days with all 3 protocols count
+    const qualifyingDates = new Set();
+    for (const day of dailyCounts) {
         if (protocol) {
-            query.protocol = protocol;
-            const completion = await this.findOne(query);
-            if (completion) {
-                tempStreak++;
-                if (
-                    checkDate.toDateString() === today.toDateString() ||
-                    (today - checkDate) / (1000 * 60 * 60 * 24) <
-                        currentStreak + 1
-                ) {
-                    currentStreak = tempStreak;
-                }
-            } else {
-                // Gap found
-                if (tempStreak > 0 && currentStreak === 0) break;
-                if (
-                    tempStreak === 0 &&
-                    checkDate.toDateString() !== today.toDateString()
-                )
-                    break;
-                if (tempStreak > 0) {
-                    longestStreak = Math.max(longestStreak, tempStreak);
-                    tempStreak = 0;
-                }
-            }
+            // If filtering by protocol, any match counts (count >= 1)
+            qualifyingDates.add(day.date);
         } else {
-            // Overall streak: require ALL 3 protocols
-            const completionCount = await this.countDocuments(query);
-            if (completionCount === 3) {
-                tempStreak++;
-                if (
-                    checkDate.toDateString() === today.toDateString() ||
-                    (today - checkDate) / (1000 * 60 * 60 * 24) <
-                        currentStreak + 1
-                ) {
-                    currentStreak = tempStreak;
-                }
-            } else {
-                // Gap found (not all protocols completed)
-                if (tempStreak > 0 && currentStreak === 0) break;
-                if (
-                    tempStreak === 0 &&
-                    checkDate.toDateString() !== today.toDateString()
-                )
-                    break;
-                if (tempStreak > 0) {
-                    longestStreak = Math.max(longestStreak, tempStreak);
-                    tempStreak = 0;
-                }
+            // Overall streak: require all 3 protocols
+            if (day.count >= 3) {
+                qualifyingDates.add(day.date);
             }
-        }
-
-        // Move to previous day
-        checkDate.setDate(checkDate.getDate() - 1);
-
-        // Safety: don't check more than 1 year back
-        if ((today - checkDate) / (1000 * 60 * 60 * 24) > 365) {
-            break;
         }
     }
 
-    longestStreak = Math.max(longestStreak, currentStreak);
+    // Calculate current streak walking backwards from today
+    let currentStreak = 0;
+    let checkDate = new Date(today);
+
+    // If today doesn't qualify, start checking from yesterday
+    if (!qualifyingDates.has(todayStr)) {
+        checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    while (true) {
+        const dateStr = checkDate.toISOString().split("T")[0];
+
+        if (dateStr < yearAgoStr) break; // Safety limit
+
+        if (qualifyingDates.has(dateStr)) {
+            currentStreak++;
+        } else {
+            break; // Gap found, streak ends
+        }
+
+        checkDate.setDate(checkDate.getDate() - 1);
+    }
+
+    // Calculate longest streak from all qualifying dates (sorted descending)
+    const sortedDates = Array.from(qualifyingDates).sort();
+    let longestStreak = 0;
+    let tempStreak = 0;
+
+    for (let i = 0; i < sortedDates.length; i++) {
+        if (i === 0) {
+            tempStreak = 1;
+        } else {
+            const prevDate = new Date(sortedDates[i - 1]);
+            const currDate = new Date(sortedDates[i]);
+            const diffDays = Math.round(
+                (currDate - prevDate) / (1000 * 60 * 60 * 24),
+            );
+
+            if (diffDays === 1) {
+                tempStreak++;
+            } else {
+                longestStreak = Math.max(longestStreak, tempStreak);
+                tempStreak = 1;
+            }
+        }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak, currentStreak);
 
     return {
         current: currentStreak,

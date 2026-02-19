@@ -260,7 +260,10 @@ export const getMetrics = async (req, res) => {
         const perfectDays = new Set();
 
         completions.forEach((completion) => {
-            byProtocol[completion.protocol]++;
+            // Guard against unexpected protocol values from legacy/corrupt data
+            if (byProtocol.hasOwnProperty(completion.protocol)) {
+                byProtocol[completion.protocol]++;
+            }
             uniqueDates.add(completion.date);
         });
 
@@ -394,11 +397,12 @@ export const getHeatmapData = async (req, res) => {
     try {
         const userId = req.user.id;
         const { months = 1 } = req.query; // Number of months to fetch
+        const parsedMonths = Math.max(1, Math.min(12, parseInt(months) || 1)); // Clamp 1-12
 
         // Calculate date range
         const endDate = new Date();
         const startDate = new Date();
-        startDate.setMonth(endDate.getMonth() - parseInt(months));
+        startDate.setMonth(endDate.getMonth() - parsedMonths);
 
         const start = startDate.toISOString().split("T")[0];
         const end = endDate.toISOString().split("T")[0];
