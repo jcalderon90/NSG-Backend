@@ -33,6 +33,7 @@ export const CONFIG = {
         : [
               "https://nsgintelligence.com",
               "https://www.nsgintelligence.com",
+              "https://nsg-eight.vercel.app",
               "http://localhost:3200",
               "http://127.0.0.1:3200",
           ],
