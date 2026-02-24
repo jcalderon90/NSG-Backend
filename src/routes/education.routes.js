@@ -11,6 +11,7 @@ import {
     update_content_data,
     get_generated_content,
     start_questions,
+    content_chat,
 } from "../controllers/education.controller.js";
 import { auth_required } from "../middlewares/validate_token.js";
 import { CONFIG } from "../config.js";
@@ -89,17 +90,6 @@ education_router.post(
 );
 
 // Chat con el contenido
-education_router.post("/content/:contentId/chat", auth_required, (req, res) => {
-    // Placeholder para el controlador de chat
-    res.json({
-        message: {
-            id: Date.now().toString(),
-            role: "bot",
-            content:
-                "Hola. Estoy analizando este recurso para responderte. Por ahora estoy en modo demo.",
-            timestamp: new Date(),
-        },
-    });
-});
+education_router.post("/content/:contentId/chat", auth_required, content_chat);
 
 export default education_router;

@@ -633,7 +633,7 @@ export const update_content_data = async (req, res) => {
                 .json({ success: false, message: "Recurso no encontrado" });
         }
 
-        // Si n8n envía bloques de preguntas
+        // 1. Manejo de bloques de preguntas
         if (updateData.question_blocks) {
             content.question_process = {
                 completed: updateData.completed || false,
@@ -643,22 +643,57 @@ export const update_content_data = async (req, res) => {
             content.markModified("question_process");
         }
 
-        // Si n8n envía el análisis final
+        // 2. Manejo de data (análisis estratégico, insights, etc)
         if (updateData.data) {
             content.data = {
                 ...content.data,
                 ...updateData.data,
             };
+            content.markModified("data");
 
-            // Si viene el análisis completo o n8n lo marca, finalizar
-            if (
-                updateData.completed === true ||
-                updateData.data.strategic_analysis
-            ) {
-                if (!content.question_process) content.question_process = {};
-                content.question_process.completed = true;
-                content.markModified("question_process");
+            // Sincronizar con la colección de contenido generado para permitir recuperación rápida
+            try {
+                const generatedUpdate = {
+                    resource_id: contentId,
+                    user_id: content.user_id.toString(),
+                    telegram_id: content.telegram_id,
+                    source_type: content.source_type,
+                    question_process_generated: {
+                        ...(content.data || {}),
+                        ...updateData.data,
+                    },
+                };
+
+                await EducationGeneratedContent.findOneAndUpdate(
+                    {
+                        resource_id: contentId,
+                        user_id: content.user_id.toString(),
+                    },
+                    generatedUpdate,
+                    { upsert: true, new: true },
+                );
+                console.log(
+                    `[Education] Sincronizado EducationGeneratedContent para: ${contentId}`,
+                );
+            } catch (genErr) {
+                console.error(
+                    "[ERROR] Falló la sincronización con EducationGeneratedContent:",
+                    genErr.message,
+                );
             }
+        }
+
+        // 3. Manejo explícito de "completed" o detección por contenido
+        if (
+            updateData.completed === true ||
+            (updateData.data && updateData.data.strategic_analysis)
+        ) {
+            if (!content.question_process) {
+                content.question_process = { completed: true };
+            } else {
+                content.question_process.completed = true;
+            }
+            content.markModified("question_process");
         }
 
         await content.save();
@@ -777,7 +812,9 @@ export const start_questions = async (req, res) => {
         });
 
         if (!webhookResponse.ok) {
-            throw new Error(`n8n respondió con error: ${webhookResponse.status}`);
+            throw new Error(
+                `n8n respondió con error: ${webhookResponse.status}`,
+            );
         }
 
         const responseData = await webhookResponse.json().catch(() => ({}));
@@ -792,6 +829,90 @@ export const start_questions = async (req, res) => {
         res.status(500).json({
             success: false,
             message: "Error al iniciar el protocolo de preguntas",
+            error: error.message,
+        });
+    }
+};
+
+/**
+ * Chat interactivo con un recurso específico
+ * POST /education/content/:contentId/chat
+ */
+export const content_chat = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const user_id = req.user.id;
+        const { message, history, preferences } = req.body;
+
+        console.log(
+            `[Education] Chat con recurso ${contentId} para usuario: ${user_id}`,
+        );
+
+        const content = await EducationContent.findById(contentId);
+        if (!content) {
+            return res
+                .status(404)
+                .json({ success: false, message: "Recurso no encontrado" });
+        }
+
+        // Llamar a n8n para el chat
+        // Nota: Asegurarse de que CONFIG.N8N_BASE_URL esté configurado
+        const N8N_BASE_URL = CONFIG.N8N_BASE_URL;
+        if (!N8N_BASE_URL) {
+            throw new Error("N8N_BASE_URL no está configurada");
+        }
+
+        const webhookUrl = `${N8N_BASE_URL}/webhook/nsg-education-chat`;
+
+        console.log(`[Education] Disparando webhook de chat: ${webhookUrl}`);
+
+        const response = await fetch(webhookUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contentId,
+                userId: user_id,
+                message,
+                history,
+                preferences,
+                strategic_context: content.data?.strategic_analysis || {},
+                extracted_data: content.extracted_data,
+            }),
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text().catch(() => "");
+            throw new Error(
+                `n8n responded with status: ${response.status} - ${errorText}`,
+            );
+        }
+
+        let n8nData = await response.json();
+
+        // Normalización si n8n devuelve array
+        if (Array.isArray(n8nData)) n8nData = n8nData[0];
+
+        // Mapear respuesta al formato que espera el frontend
+        const aiMessage = {
+            id: Date.now().toString(),
+            role: "system",
+            content:
+                n8nData.output ||
+                n8nData.message ||
+                n8nData.text ||
+                "No pude procesar una respuesta.",
+            timestamp: new Date(),
+        };
+
+        res.json({
+            success: true,
+            message: aiMessage,
+        });
+    } catch (error) {
+        console.error("[ERROR] content_chat:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error en el motor de chat",
             error: error.message,
         });
     }
