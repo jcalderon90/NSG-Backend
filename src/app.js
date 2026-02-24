@@ -46,8 +46,7 @@ app.use(
             // Verificación: permitir si está en la lista o si es localhost en desarrollo
             const isAllowed =
                 allowedOrigins.includes(originUrl) ||
-                (process.env.NODE_ENV !== "production" &&
-                    /^http:\/\/localhost:\d+$/.test(originUrl));
+                /^http:\/\/localhost:\d+$/.test(originUrl);
 
             if (isAllowed) {
                 callback(null, true);

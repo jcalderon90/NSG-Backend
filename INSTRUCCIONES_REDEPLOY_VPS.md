@@ -38,7 +38,7 @@ En la configuración del servicio, verifica que:
 #### 1. Conectarse al VPS
 
 ```bash
-ssh usuario@api.nsgintelligence.com
+ssh usuario@your-api-domain.com
 ```
 
 #### 2. Navegar al directorio del backend
@@ -144,7 +144,7 @@ jobs:
 
 En GitHub → Settings → Secrets → Actions, agregar:
 
-- `VPS_HOST`: `api.nsgintelligence.com`
+- `VPS_HOST`: `your-api-domain.com`
 - `VPS_USER`: tu usuario SSH
 - `VPS_SSH_KEY`: tu clave SSH privada
 
@@ -160,7 +160,7 @@ git push origin main
 
 ```bash
 # Conectarse al VPS
-ssh usuario@api.nsgintelligence.com
+ssh usuario@your-api-domain.com
 
 # Verificar el repositorio
 cd /code
@@ -186,7 +186,7 @@ ls -la /code/src/routes/copilot.routes.js
 ### 3. Verificar que el endpoint funcione
 
 ```bash
-curl -I https://api.nsgintelligence.com/copilot/history/test123
+curl -I https://your-api-domain.com/copilot/history/test123
 ```
 
 **Resultado esperado:**
@@ -258,7 +258,7 @@ pm2 status
 Cuando ejecutes:
 
 ```bash
-curl -I https://api.nsgintelligence.com/copilot/history/test123
+curl -I https://your-api-domain.com/copilot/history/test123
 ```
 
 Y veas:
