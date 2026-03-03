@@ -17,7 +17,7 @@ export const CONFIG = {
     GOOGLE_REDIRECT_URI:
         process.env.GOOGLE_REDIRECT_URI ||
         (isProduction
-            ? "https://api-nsg.vercel.app/google/callback" // Generic placeholder or per environment
+            ? "https://api.nsgintelligence.com/google/callback"
             : "http://localhost:4000/google/callback"),
 
     API_BASE_URL: isProduction
