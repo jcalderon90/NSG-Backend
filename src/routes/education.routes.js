@@ -12,6 +12,8 @@ import {
     get_generated_content,
     start_questions,
     content_chat,
+    activate_tracking,
+    get_tracking_status,
 } from "../controllers/education.controller.js";
 import { auth_required } from "../middlewares/validate_token.js";
 import { CONFIG } from "../config.js";
@@ -91,5 +93,13 @@ education_router.post(
 
 // Chat con el contenido
 education_router.post("/content/:contentId/chat", auth_required, content_chat);
+
+// Seguimiento de accionables por Telegram
+education_router.get("/tracking/status", auth_required, get_tracking_status);
+education_router.post(
+    "/content/:contentId/tracking",
+    auth_required,
+    activate_tracking,
+);
 
 export default education_router;

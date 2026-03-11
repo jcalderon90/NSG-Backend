@@ -42,6 +42,14 @@ const educationGeneratedContentSchema = new mongoose.Schema(
             ],
             suggested_questions: [String],
         },
+        follow_up_actions: {
+            type: mongoose.Schema.Types.Mixed,
+            default: null,
+        },
+        telegram_tracking: {
+            active: { type: Boolean, default: false },
+            activated_at: { type: Date, default: null },
+        },
     },
     {
         timestamps: true,

@@ -917,3 +917,117 @@ export const content_chat = async (req, res) => {
         });
     }
 };
+
+/**
+ * Activar seguimiento de accionables por Telegram
+ * POST /education/content/:contentId/tracking
+ * Solo permite 1 grupo activo por usuario — desactiva el anterior si existe
+ */
+export const activate_tracking = async (req, res) => {
+    try {
+        const { contentId } = req.params;
+        const user_id = req.user.id;
+
+        console.log(
+            `[Education] Activando tracking para recurso: ${contentId}, usuario: ${user_id}`,
+        );
+
+        // Verificar que el documento generado existe y pertenece al usuario
+        const generated = await EducationGeneratedContent.findOne({
+            resource_id: contentId,
+            user_id: user_id.toString(),
+        });
+
+        if (!generated) {
+            return res.status(404).json({
+                success: false,
+                message:
+                    "No se encontró el análisis generado para este recurso",
+            });
+        }
+
+        // Desactivar cualquier tracking activo previo del usuario
+        await EducationGeneratedContent.updateMany(
+            {
+                user_id: user_id.toString(),
+                "telegram_tracking.active": true,
+            },
+            {
+                $set: {
+                    "telegram_tracking.active": false,
+                },
+            },
+        );
+
+        // Activar tracking en el documento solicitado
+        generated.telegram_tracking = {
+            active: true,
+            activated_at: new Date(),
+        };
+        generated.markModified("telegram_tracking");
+        await generated.save();
+
+        console.log(
+            `[Education] Tracking activado exitosamente para recurso: ${contentId}`,
+        );
+
+        res.json({
+            success: true,
+            message: "Seguimiento activado exitosamente",
+            data: {
+                resource_id: contentId,
+                tracking: generated.telegram_tracking,
+            },
+        });
+    } catch (error) {
+        console.error("[ERROR] activate_tracking:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error al activar el seguimiento",
+            error: error.message,
+        });
+    }
+};
+
+/**
+ * Obtener el estado de tracking del usuario
+ * GET /education/tracking/status
+ * Retorna el recurso actualmente en seguimiento (si existe)
+ */
+export const get_tracking_status = async (req, res) => {
+    try {
+        const user_id = req.user.id;
+
+        const activeTracking = await EducationGeneratedContent.findOne({
+            user_id: user_id.toString(),
+            "telegram_tracking.active": true,
+        }).lean();
+
+        if (!activeTracking) {
+            return res.json({
+                success: true,
+                data: { active: false },
+            });
+        }
+
+        res.json({
+            success: true,
+            data: {
+                active: true,
+                resource_id: activeTracking.resource_id,
+                activated_at: activeTracking.telegram_tracking?.activated_at,
+                title:
+                    activeTracking.question_process_generated?.title ||
+                    "Recurso sin título",
+            },
+        });
+    } catch (error) {
+        console.error("[ERROR] get_tracking_status:", error);
+        res.status(500).json({
+            success: false,
+            message: "Error al consultar el estado de seguimiento",
+            error: error.message,
+        });
+    }
+};
+
