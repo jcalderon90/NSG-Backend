@@ -50,6 +50,11 @@ const educationGeneratedContentSchema = new mongoose.Schema(
             active: { type: Boolean, default: false },
             activated_at: { type: Date, default: null },
         },
+        copilot_tracking_active: {
+            type: Boolean,
+            default: false,
+            index: true,
+        },
     },
     {
         timestamps: true,

@@ -3,6 +3,7 @@ import EducationPreferences from "../models/education-preferences.model.js";
 import EducationContent from "../models/education-content.model.js";
 import EducationGeneratedContent from "../models/education-generated-content.model.js";
 import User from "../models/user.model.js";
+import CopilotAction from "../models/CopilotAction.js";
 import { CONFIG } from "../config.js";
 
 /**
@@ -499,6 +500,19 @@ export const save_answers = async (req, res) => {
         const { contentId } = req.params;
         const { answers } = req.body;
 
+        console.log(`[Education] intentando guardar respuestas para el contenido: ${contentId}`, {
+            user_id,
+            hasAnswers: !!answers,
+            answersCount: answers ? Object.keys(answers).length : 0
+        });
+
+        if (!answers) {
+            return res.status(400).json({
+                success: false,
+                message: "No se proporcionaron respuestas."
+            });
+        }
+
         const content = await EducationContent.findOne({
             _id: contentId,
             $or: [
@@ -512,47 +526,56 @@ export const save_answers = async (req, res) => {
         });
 
         if (!content) {
+            console.warn(`[Education] Recurso no encontrado o sin acceso: ${contentId} para usuario: ${user_id}`);
             return res.status(404).json({
                 success: false,
-                message: "Recurso no encontrado",
+                message: "Recurso no encontrado o no tienes permiso para acceder.",
             });
         }
 
         // Mapear respuestas en los bloques de preguntas
         if (
             content.question_process &&
-            content.question_process.question_blocks
+            Array.isArray(content.question_process.question_blocks)
         ) {
-            content.question_process.question_blocks =
-                content.question_process.question_blocks.map((block) => ({
-                    ...block,
-                    questions: block.questions.map((q) => ({
-                        ...q,
-                        answer: answers[q.id] || q.answer || "",
-                    })),
-                }));
+            try {
+                content.question_process.question_blocks =
+                    content.question_process.question_blocks.map((block) => ({
+                        ...block,
+                        questions: Array.isArray(block.questions) 
+                            ? block.questions.map((q) => ({
+                                ...q,
+                                answer: (answers && q.id) ? (answers[q.id] || q.answer || "") : (q.answer || ""),
+                            }))
+                            : []
+                    }));
 
-            // Marcar como completado
-            content.question_process.completed = true;
-            content.markModified("question_process");
+                // Marcar como completado
+                content.question_process.completed = true;
+                content.markModified("question_process");
+            } catch (mapError) {
+                console.error("[ERROR] Error al mapear respuestas:", mapError);
+                throw new Error(`Error procesando estructura de preguntas: ${mapError.message}`);
+            }
+        } else {
+            console.warn(`[Education] El recurso ${contentId} no tiene un proceso de preguntas activo o válido.`);
         }
 
         await content.save();
+        console.log(`[Education] Respuestas guardadas exitosamente para ${contentId}`);
 
         // Notificar a n8n para generar el contenido final y esperar respuesta
         try {
             const N8N_BASE_URL = CONFIG.N8N_BASE_URL;
             if (!N8N_BASE_URL) {
-                throw new Error("N8N_BASE_URL is not defined");
+                throw new Error("N8N_BASE_URL is not defined in config");
             }
 
             // NOTA: La URL en n8n tiene un typo ("rescource" en vez de "resource")
             // Se mantiene así para coincidir con el webhook configurado en n8n
             const webhookUrl = `${N8N_BASE_URL}/webhook/generate-rescource-content`;
-            console.log(
-                `[Education] Notificando a n8n para generar contenido final: ${contentId}`,
-                `URL: ${webhookUrl}`,
-            );
+            
+            console.log(`[Education] Notificando a n8n para generar análisis final: ${contentId}`);
 
             const webhookResponse = await fetch(webhookUrl, {
                 method: "POST",
@@ -560,17 +583,18 @@ export const save_answers = async (req, res) => {
                 body: JSON.stringify({
                     contentId: contentId,
                     action: "generate_analysis",
+                    userId: user_id
                 }),
             });
 
             if (!webhookResponse.ok) {
                 const errorText = await webhookResponse.text().catch(() => "");
                 throw new Error(
-                    `n8n responded with status: ${webhookResponse.status} - ${errorText}`,
+                    `n8n respondió con status: ${webhookResponse.status} - ${errorText}`,
                 );
             }
 
-            // Parsear la respuesta de forma segura (n8n puede devolver vacío)
+            // Parsear la respuesta de forma segura
             const responseText = await webhookResponse.text().catch(() => "");
             let webhookData;
             try {
@@ -578,10 +602,7 @@ export const save_answers = async (req, res) => {
                     ? JSON.parse(responseText)
                     : { success: true };
             } catch (parseErr) {
-                console.warn(
-                    "[Education] n8n response was not valid JSON:",
-                    responseText,
-                );
+                console.warn("[Education] n8n response was not valid JSON:", responseText);
                 webhookData = { success: true, raw: responseText };
             }
 
@@ -594,13 +615,12 @@ export const save_answers = async (req, res) => {
                 generated: true,
             });
         } catch (webhookError) {
-            console.error(
-                "[ERROR] Failed to trigger final n8n webhook:",
-                webhookError.message,
-            );
+            console.error("[ERROR] Failed to trigger final n8n webhook:", webhookError.message);
+            
+            // Aunque falle el webhook, las respuestas ya se guardaron
             return res.status(502).json({
                 success: false,
-                message: "El servidor de análisis no respondió correctamente",
+                message: "Las respuestas se guardaron, pero hubo un error generando el análisis final.",
                 error: webhookError.message,
             });
         }
@@ -608,7 +628,8 @@ export const save_answers = async (req, res) => {
         console.error("[ERROR] save_answers:", error);
         res.status(500).json({
             success: false,
-            message: error.message,
+            message: "Error interno del servidor al guardar respuestas.",
+            details: error.message,
         });
     }
 };
@@ -929,7 +950,7 @@ export const activate_tracking = async (req, res) => {
         const user_id = req.user.id;
 
         console.log(
-            `[Education] Activando tracking para recurso: ${contentId}, usuario: ${user_id}`,
+            `[Education] Activando seguimiento Copilot para recurso: ${contentId}, usuario: ${user_id}`,
         );
 
         // Verificar que el documento generado existe y pertenece al usuario
@@ -942,48 +963,54 @@ export const activate_tracking = async (req, res) => {
             return res.status(404).json({
                 success: false,
                 message:
-                    "No se encontró el análisis generado para este recurso",
+                    "No se encontró el análisis generado para este recurso o no tienes permiso.",
             });
         }
 
-        // Desactivar cualquier tracking activo previo del usuario
+        // 1. Desactivar cualquier tracking previo del mismo tipo para el usuario
         await EducationGeneratedContent.updateMany(
             {
                 user_id: user_id.toString(),
-                "telegram_tracking.active": true,
+                $or: [
+                    { "telegram_tracking.active": true },
+                    { copilot_tracking_active: true }
+                ]
             },
             {
                 $set: {
                     "telegram_tracking.active": false,
+                    copilot_tracking_active: false
                 },
             },
         );
 
-        // Activar tracking en el documento solicitado
+        // 2. Activar el flag booleano en el recurso solicitado
+        generated.copilot_tracking_active = true;
         generated.telegram_tracking = {
             active: true,
             activated_at: new Date(),
         };
+        
         generated.markModified("telegram_tracking");
         await generated.save();
 
         console.log(
-            `[Education] Tracking activado exitosamente para recurso: ${contentId}`,
+            `[Education] Seguimiento Copilot activado (boolean flag) para recurso: ${contentId}`,
         );
 
         res.json({
             success: true,
-            message: "Seguimiento activado exitosamente",
+            message: "Seguimiento Copilot activado exitosamente",
             data: {
                 resource_id: contentId,
-                tracking: generated.telegram_tracking,
+                copilot_tracking_active: true
             },
         });
     } catch (error) {
         console.error("[ERROR] activate_tracking:", error);
         res.status(500).json({
             success: false,
-            message: "Error al activar el seguimiento",
+            message: "Error al activar el flag de seguimiento",
             error: error.message,
         });
     }
@@ -1000,7 +1027,10 @@ export const get_tracking_status = async (req, res) => {
 
         const activeTracking = await EducationGeneratedContent.findOne({
             user_id: user_id.toString(),
-            "telegram_tracking.active": true,
+            $or: [
+                { "telegram_tracking.active": true },
+                { copilot_tracking_active: true }
+            ]
         }).lean();
 
         if (!activeTracking) {
@@ -1015,10 +1045,11 @@ export const get_tracking_status = async (req, res) => {
             data: {
                 active: true,
                 resource_id: activeTracking.resource_id,
-                activated_at: activeTracking.telegram_tracking?.activated_at,
+                activated_at: activeTracking.telegram_tracking?.activated_at || activeTracking.updatedAt,
                 title:
                     activeTracking.question_process_generated?.title ||
                     "Recurso sin título",
+                copilot_tracking_active: activeTracking.copilot_tracking_active
             },
         });
     } catch (error) {
