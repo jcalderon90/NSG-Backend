@@ -3,7 +3,6 @@ import EducationPreferences from "../models/education-preferences.model.js";
 import EducationContent from "../models/education-content.model.js";
 import EducationGeneratedContent from "../models/education-generated-content.model.js";
 import User from "../models/user.model.js";
-import CopilotAction from "../models/CopilotAction.js";
 import { CONFIG } from "../config.js";
 
 /**
@@ -967,7 +966,7 @@ export const activate_tracking = async (req, res) => {
             });
         }
 
-        // 1. Desactivar cualquier tracking previo del mismo tipo para el usuario
+        // 1. Desactivar cualquier tracking previo del mismo tipo para el usuario en ambas colecciones
         await EducationGeneratedContent.updateMany(
             {
                 user_id: user_id.toString(),
@@ -984,7 +983,17 @@ export const activate_tracking = async (req, res) => {
             },
         );
 
-        // 2. Activar el flag booleano en el recurso solicitado
+        await EducationContent.updateMany(
+            {
+                user_id: user_id.toString(),
+                copilot_tracking_active: true
+            },
+            {
+                $set: { copilot_tracking_active: false }
+            }
+        );
+
+        // 2. Activar el flag booleano en el recurso solicitado (Gnerated)
         generated.copilot_tracking_active = true;
         generated.telegram_tracking = {
             active: true,
@@ -993,6 +1002,11 @@ export const activate_tracking = async (req, res) => {
         
         generated.markModified("telegram_tracking");
         await generated.save();
+
+        // 3. Sincronizar también con el documento principal de contenido
+        await EducationContent.findByIdAndUpdate(contentId, {
+            copilot_tracking_active: true
+        });
 
         console.log(
             `[Education] Seguimiento Copilot activado (boolean flag) para recurso: ${contentId}`,
