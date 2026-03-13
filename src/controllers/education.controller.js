@@ -318,6 +318,7 @@ export const get_content = async (req, res) => {
                     },
                     telegram_id: item.telegram_id,
                 },
+                copilot_tracking_active: !!item.copilot_tracking_active,
             };
         });
 
@@ -477,6 +478,7 @@ export const get_single_content = async (req, res) => {
                 question_process: item.question_process,
                 telegram_id: item.telegram_id,
             },
+            copilot_tracking_active: !!item.copilot_tracking_active,
         };
 
         res.json({
@@ -966,6 +968,36 @@ export const activate_tracking = async (req, res) => {
             });
         }
 
+        // 1. Verificar el estado actual
+        const isCurrentlyActive = generated.copilot_tracking_active;
+
+        if (isCurrentlyActive) {
+            // DESACTIVAR
+            generated.copilot_tracking_active = false;
+            generated.telegram_tracking = {
+                active: false,
+                activated_at: null,
+            };
+            generated.markModified("telegram_tracking");
+            await generated.save();
+
+            await EducationContent.findByIdAndUpdate(contentId, {
+                copilot_tracking_active: false
+            });
+
+            console.log(`[Education] Seguimiento Copilot DESACTIVADO para recurso: ${contentId}`);
+
+            return res.json({
+                success: true,
+                message: "Seguimiento desactivado correctamente",
+                data: {
+                    resource_id: contentId,
+                    copilot_tracking_active: false
+                },
+            });
+        }
+
+        // ACTIVAR (Lógica existente de desactivar otros primero)
         // 1. Desactivar cualquier tracking previo del mismo tipo para el usuario en ambas colecciones
         await EducationGeneratedContent.updateMany(
             {
@@ -993,7 +1025,7 @@ export const activate_tracking = async (req, res) => {
             }
         );
 
-        // 2. Activar el flag booleano en el recurso solicitado (Gnerated)
+        // 2. Activar el flag booleano en el recurso solicitado (Generated)
         generated.copilot_tracking_active = true;
         generated.telegram_tracking = {
             active: true,
