@@ -152,17 +152,24 @@ export const verifyToken = async (req, res) => {
             token = token.slice(7);
         }
 
-        // Usar promisify para manejar jwt.verify de forma síncrona
+        // Verificar el token
         const decoded = jwt.verify(token, TOKEN_SECRET);
 
-        const user_found = await User.findById(decoded.id);
+        // Buscar el usuario con el ID decodificado
+        let user_found;
+        try {
+            user_found = await User.findById(decoded.id);
+        } catch (dbError) {
+            console.error("[VERIFY-TOKEN-DB-ERROR]", dbError.message);
+            return res.status(401).json({ message: "Invalid user ID in token" });
+        }
 
         if (!user_found) {
             return res.status(401).json({ message: "User not found" });
         }
 
         // Respuesta exitosa con los datos del usuario
-        const response = {
+        return res.status(200).json({
             success: true,
             user: {
                 id: user_found._id,
@@ -177,9 +184,7 @@ export const verifyToken = async (req, res) => {
                 created_at: user_found.createdAt,
                 updated_at: user_found.updatedAt,
             },
-        };
-
-        return res.status(200).json(response);
+        });
     } catch (error) {
         if (error.name === "TokenExpiredError") {
             return res.status(401).json({ message: "Token expired" });
@@ -189,7 +194,11 @@ export const verifyToken = async (req, res) => {
             return res.status(401).json({ message: "Invalid token" });
         }
 
-        return res.status(500).json({ message: error.message });
+        console.error("[VERIFY-TOKEN-CRITICAL-ERROR]", error);
+        return res.status(500).json({ 
+            success: false,
+            message: error.message || "Internal server error during token verification" 
+        });
     }
 };
 
