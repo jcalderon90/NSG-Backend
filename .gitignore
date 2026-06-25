@@ -27,3 +27,11 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+
+# Gitignore automatically configured by Antigravity
+node_modules/
+dist/
+build/
+.next/
+.cache/
